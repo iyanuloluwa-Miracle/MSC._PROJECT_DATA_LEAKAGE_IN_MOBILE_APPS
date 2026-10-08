@@ -78,21 +78,21 @@ This task backlog maps all upcoming engineering deliverables to the functional a
 ---
 
 ## Phase 6: Tkinter Desktop User Interface
-- [ ] **TASK-601: Main Window & Theme Styling (`main_window.py`, `widgets.py`)**
+- [x] **TASK-601: Main Window & Theme Styling (`main_window.py`, `widgets.py`)**
   - *Requirements*: NFR-01
-  - Create responsive ttk Notebook frame, custom badges, and layout hierarchy.
-- [ ] **TASK-602: Analyze View & Background Threading (`analyze_view.py`)**
+  - Create professional research desktop window with responsive left sidebar, custom badges, metric cards, and layout hierarchy.
+- [x] **TASK-602: Analyze View & Background Threading (`analyze_view.py`)**
   - *Requirements*: NFR-01, NFR-02
-  - Implement file selection, background worker threading for non-blocking analysis, and progress indicators.
-- [ ] **TASK-603: Results View & Visual Gauges (`results_view.py`)**
+  - Implement APK file selection/drop-zone, non-blocking background worker threading with queue-based UI synchronization, progress indicators, and cancellation.
+- [x] **TASK-603: Results View & Visual Gauges (`results_view.py`)**
   - *Requirements*: NFR-01, FR-05
-  - Display treeview of findings, risk score cards, and export action buttons.
-- [ ] **TASK-604: History View & Search (`history_view.py`)**
+  - Display Master-Detail treeview of findings, risk score gauges, severity cards, permission audits, and report export action buttons.
+- [x] **TASK-604: History View & Search (`history_view.py`)**
   - *Requirements*: NFR-01
-  - Table view of historical scans with search filtering and report re-export.
-- [ ] **TASK-605: Settings View (`settings_view.py`)**
+  - Table view of historical scans in SQLite with search filtering, scan inspection, and report re-exporting.
+- [x] **TASK-605: Settings View (`settings_view.py`)**
   - *Requirements*: NFR-01, NFR-03
-  - Display detected external tool status, configure timeouts, and manage rule sensitivity.
+  - Display detected external tool diagnostics (JADX, Apktool, ReportLab, SQLite), configure timeouts, and manage database paths.
 
 ---
 
