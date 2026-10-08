@@ -11,6 +11,7 @@ from typing import Any
 from data_leak_detector.core.config import AppConfig
 from data_leak_detector.core.models import AnalysisResult
 from data_leak_detector.ui.analyze_view import AnalyzeView
+from data_leak_detector.ui.batch_view import BatchView
 from data_leak_detector.ui.history_view import HistoryView
 from data_leak_detector.ui.settings_view import SettingsView
 from data_leak_detector.ui.widgets import (
@@ -235,9 +236,10 @@ class MainWindow(tk.Tk):
 
         # Create sidebar items
         self._create_sidebar_item("analyze", "📊 Dashboard / Analyze", "Ctrl+1")
-        self._create_sidebar_item("history", "📜 History", "Ctrl+2")
-        self._create_sidebar_item("settings", "⚙ Settings", "Ctrl+3")
-        self._create_sidebar_item("about", "ℹ About", "Ctrl+4")
+        self._create_sidebar_item("batch", "📦 Batch Analysis", "Ctrl+2")
+        self._create_sidebar_item("history", "📜 History", "Ctrl+3")
+        self._create_sidebar_item("settings", "⚙ Settings", "Ctrl+4")
+        self._create_sidebar_item("about", "ℹ About", "Ctrl+5")
 
         # Sidebar Footer
         footer_frame = tk.Frame(self.sidebar, bg=COLOR_SIDEBAR_BG, padx=16, pady=16)
@@ -278,6 +280,12 @@ class MainWindow(tk.Tk):
             self.content_area,
             config=self.config,
             on_analysis_completed=self._on_scan_completed,
+        )
+
+        self.views["batch"] = BatchView(
+            self.content_area,
+            config=self.config,
+            on_inspect_result=self._on_inspect_history_result,
         )
 
         self.views["history"] = HistoryView(
@@ -372,7 +380,7 @@ class MainWindow(tk.Tk):
                     if isinstance(child, tk.Label):
                         child.config(
                             bg=COLOR_SIDEBAR_BG,
-                            fg=COLOR_SIDEBAR_TEXT if child.cget("text").startswith(("📊", "📜", "⚙", "ℹ")) else COLOR_SIDEBAR_MUTED,
+                            fg=COLOR_SIDEBAR_TEXT if child.cget("text").startswith(("📊", "📦", "📜", "⚙", "ℹ")) else COLOR_SIDEBAR_MUTED,
                         )
 
         # Hide other views, show target view
@@ -405,9 +413,10 @@ class MainWindow(tk.Tk):
     def _bind_shortcuts(self) -> None:
         """Bind global keyboard shortcuts for seamless navigation."""
         self.bind("<Control-Key-1>", lambda e: self.show_view("analyze"))
-        self.bind("<Control-Key-2>", lambda e: self.show_view("history"))
-        self.bind("<Control-Key-3>", lambda e: self.show_view("settings"))
-        self.bind("<Control-Key-4>", lambda e: self.show_view("about"))
+        self.bind("<Control-Key-2>", lambda e: self.show_view("batch"))
+        self.bind("<Control-Key-3>", lambda e: self.show_view("history"))
+        self.bind("<Control-Key-4>", lambda e: self.show_view("settings"))
+        self.bind("<Control-Key-5>", lambda e: self.show_view("about"))
 
         # Ctrl+O: Open file dialog
         self.bind("<Control-Key-o>", self._shortcut_open_file)
@@ -438,17 +447,29 @@ class MainWindow(tk.Tk):
             analyze_view: AnalyzeView = self.views["analyze"]  # type: ignore
             if analyze_view._is_running:
                 analyze_view.cancel_analysis()
+        elif self._current_view == "batch":
+            batch_view: Any = self.views.get("batch")
+            if batch_view and batch_view.processor.is_running:
+                batch_view.cancel_all()
 
     def _on_close_requested(self) -> None:
         """Handle window close event gracefully."""
         analyze_view: AnalyzeView = self.views.get("analyze")  # type: ignore
-        if analyze_view and analyze_view._is_running:
+        batch_view: Any = self.views.get("batch")
+        is_running = (analyze_view and analyze_view._is_running) or (
+            batch_view and batch_view.processor.is_running
+        )
+
+        if is_running:
             confirm = messagebox.askyesno(
                 "Analysis In Progress",
                 "A static analysis scan is currently running.\nDo you want to cancel the scan and exit?",
             )
             if confirm:
-                analyze_view.cancel_analysis()
+                if analyze_view and analyze_view._is_running:
+                    analyze_view.cancel_analysis()
+                if batch_view and batch_view.processor.is_running:
+                    batch_view.cancel_all()
                 self.destroy()
         else:
             self.destroy()

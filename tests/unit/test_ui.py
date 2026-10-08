@@ -29,6 +29,7 @@ from data_leak_detector.core.models import (
 )
 from data_leak_detector.storage.database import DatabaseManager
 from data_leak_detector.ui.analyze_view import AnalyzeView
+from data_leak_detector.ui.batch_view import BatchView
 from data_leak_detector.ui.history_view import HistoryView
 from data_leak_detector.ui.main_window import AboutView, MainWindow
 from data_leak_detector.ui.results_view import ResultsView
@@ -482,6 +483,29 @@ class TestTkinterUI(unittest.TestCase):
 
             settings_view.destroy()
 
+    def test_batch_view(self) -> None:
+        """Verify BatchView handles file queueing, display updates, and clear queue."""
+        batch_view = BatchView(self.root, config=self.config)
+        self.assertEqual(len(batch_view.processor.items), 0)
+
+        # Add files to queue
+        batch_view.add_files(["sample1.apk", "sample2.apk"])
+        self.assertEqual(len(batch_view.processor.items), 2)
+        children = batch_view.tree.get_children()
+        self.assertEqual(len(children), 2)
+
+        # Verify values in table
+        vals1 = batch_view.tree.item(children[0], "values")
+        self.assertEqual(vals1[0], "sample1.apk")
+        self.assertEqual(vals1[1], "Waiting")
+
+        # Test clear queue
+        batch_view.clear_queue()
+        self.assertEqual(len(batch_view.processor.items), 0)
+        self.assertEqual(len(batch_view.tree.get_children()), 0)
+
+        batch_view.destroy()
+
     def test_about_view(self) -> None:
         """Verify AboutView instantiates without error."""
         about_view = AboutView(self.root)
@@ -495,6 +519,10 @@ class TestTkinterUI(unittest.TestCase):
 
         # Default view is analyze
         self.assertEqual(win._current_view, "analyze")
+
+        # Switch to batch
+        win.show_view("batch")
+        self.assertEqual(win._current_view, "batch")
 
         # Switch to history
         win.show_view("history")

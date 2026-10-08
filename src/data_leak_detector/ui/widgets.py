@@ -41,6 +41,8 @@ COLOR_BORDER_LIGHT = "#e2e8f0"  # Slate-200
 COLOR_ACCENT = "#2563eb"        # Blue-600
 COLOR_ACCENT_HOVER = "#1d4ed8"  # Blue-700
 COLOR_SUCCESS = "#16a34a"       # Green-600
+COLOR_DANGER = "#dc2626"        # Red-600
+COLOR_WARNING = "#d97706"       # Amber-600
 
 # Severity Color Tokens (High contrast, accessible)
 SEVERITY_COLORS: dict[str, dict[str, str]] = {

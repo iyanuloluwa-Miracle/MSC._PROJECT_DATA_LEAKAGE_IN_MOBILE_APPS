@@ -232,19 +232,27 @@ class AnalyzeView(ttk.Frame):
     # FILE SELECTION
     # -------------------------------------------------------------------------
     def browse_apk_file(self) -> None:
-        """Open native file dialog to choose an APK package."""
+        """Open native file dialog to choose an APK package or multiple for batch."""
         if self._is_running:
             return
 
-        chosen = filedialog.askopenfilename(
-            title="Select Target Android Package",
+        chosen = filedialog.askopenfilenames(
+            title="Select Android Package(s)",
             filetypes=[
                 ("Android Packages (*.apk)", "*.apk"),
                 ("All Files (*.*)", "*.*"),
             ],
         )
         if chosen:
-            self.set_selected_apk(chosen)
+            if len(chosen) > 1:
+                # Direct multiple files to BatchView if hosted in MainWindow
+                top = self.winfo_toplevel()
+                if hasattr(top, "views") and "batch" in top.views:
+                    batch_view = top.views["batch"]
+                    batch_view.add_files(chosen)
+                    top.show_view("batch")
+                    return
+            self.set_selected_apk(chosen[0])
 
     def set_selected_apk(self, path_str: str) -> None:
         """Validate and set target APK file."""

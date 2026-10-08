@@ -1,6 +1,7 @@
 """Tkinter / ttk desktop user interface components."""
 
 from data_leak_detector.ui.analyze_view import AnalyzeView
+from data_leak_detector.ui.batch_view import BatchView
 from data_leak_detector.ui.history_view import HistoryView
 from data_leak_detector.ui.main_window import MainWindow
 from data_leak_detector.ui.results_view import ResultsView
@@ -23,6 +24,7 @@ from data_leak_detector.ui.widgets import (
 __all__ = [
     "MainWindow",
     "AnalyzeView",
+    "BatchView",
     "ResultsView",
     "HistoryView",
     "SettingsView",
