@@ -30,6 +30,9 @@ This task backlog maps all upcoming engineering deliverables to the functional a
 - [x] **TASK-203: Permission Auditing Module (`permission_analyzer.py`)**
   - *Requirements*: FR-02, FR-03
   - Implement permission risk evaluation and correlation of dangerous combos (e.g., location + cellular state + internet).
+- [x] **TASK-204: Static Analysis Orchestrator (`engine.py`)**
+  - *Requirements*: FR-01, FR-04, NFR-02, NFR-03
+  - Implement `AnalysisEngine` coordinating validation, hashing, parsing, permission analysis, decompilation, modular rule scanning across 6 categories, finding deduplication, explainable risk scoring, cancellation tokens, fault containment, temporary artifact cleanup, and zero Tkinter coupling.
 
 ---
 
@@ -56,19 +59,21 @@ This task backlog maps all upcoming engineering deliverables to the functional a
 ---
 
 ## Phase 4: Local Persistence & Storage
-- [ ] **TASK-401: SQLite Database Manager (`database.py`)**
+- [x] **TASK-401: SQLite Database Manager (`database.py`)**
   - *Requirements*: NFR-06, NFR-03
-  - Implement local SQLite tables for scans, metadata, and findings with query methods for history views.
+  - Implement local SQLite tables for applications, analysis results, permission findings, and security findings using parameterized SQL exclusively, automatic schema initialization, user data directory persistence, and full CRUD query operations (`save_result`, `get_result`, `list_history`, `delete_result`, `clear_history`, `find_by_hash`).
+
 
 ---
 
 ## Phase 5: Reporting Engine
-- [ ] **TASK-501: PDF Report Generation via ReportLab (`pdf_report.py`)**
+- [x] **TASK-501: PDF Report Generation via ReportLab (`pdf_report.py`)**
   - *Requirements*: FR-05, NFR-06
-  - Design academic-grade PDF audit report with executive summary, findings table, and redacted evidence.
-- [ ] **TASK-502: HTML & Markdown / Plaintext Formatters (`html_report.py`, `text_report.py`)**
+  - Design academic-grade PDF audit report with executive summary, findings table ordered by severity, visual score card, permission audit, methodology disclaimer, and redacted evidence using ReportLab Platypus.
+- [x] **TASK-502: HTML & Markdown / Plaintext Formatters (`html_report.py`, `text_report.py`, `report_generator.py`)**
   - *Requirements*: FR-05
-  - Implement standalone HTML and terminal-friendly report exports.
+  - Implement standalone HTML report with embedded responsive styles and terminal-friendly plaintext/markdown audit summary with full 18-point audit details.
+
 
 ---
 

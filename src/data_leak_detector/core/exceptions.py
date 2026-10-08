@@ -9,6 +9,10 @@ class InvalidAPKError(DetectorError):
     """Raised when the target file does not exist, is not a file, or is not a valid ZIP/APK archive."""
 
 
+class AnalysisCancelledError(DetectorError):
+    """Raised when an ongoing static analysis scan is cancelled cooperatively."""
+
+
 class APKParsingError(DetectorError):
     """Raised when an APK cannot be opened, unpacked, or parsed statically."""
 

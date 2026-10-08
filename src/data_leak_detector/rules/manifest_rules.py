@@ -527,3 +527,17 @@ class ExcessivePermissionCombinationRule(BaseRule):
                 )
 
         return findings
+
+
+ALL_MANIFEST_RULES: list[type[BaseRule]] = [
+    DebuggableRule,
+    AllowBackupRule,
+    CleartextTrafficPermittedRule,
+    NetworkSecurityConfigRule,
+    ExportedActivityRule,
+    ExportedServiceRule,
+    ExportedReceiverRule,
+    ExportedProviderRule,
+    SensitiveComponentExposureRule,
+    ExcessivePermissionCombinationRule,
+]

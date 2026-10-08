@@ -462,3 +462,15 @@ class HardcodedSecretRule(BaseRule):
         for rule in self.sub_rules:
             findings.extend(rule.evaluate(context))
         return findings
+
+
+ALL_SECRET_RULES: list[type[BaseRule]] = [
+    GoogleApiKeyRule,
+    AwsCredentialRule,
+    PrivateKeyMaterialRule,
+    OAuthClientSecretRule,
+    DatabaseCredentialRule,
+    HardcodedPasswordRule,
+    GenericApiTokenRule,
+]
+

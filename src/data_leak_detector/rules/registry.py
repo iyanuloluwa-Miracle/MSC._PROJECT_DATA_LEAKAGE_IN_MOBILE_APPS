@@ -65,6 +65,10 @@ class RuleRegistry:
         """Return all registered rules."""
         return list(self._rules.values())
 
+    def get_enabled_rules(self) -> list[BaseRule]:
+        """Return all enabled rules."""
+        return [r for r in self._rules.values() if getattr(r, "enabled", True)]
+
     def enable_rule(self, rule_id: str) -> bool:
         """Enable an existing rule."""
         rule = self._rules.get(rule_id)

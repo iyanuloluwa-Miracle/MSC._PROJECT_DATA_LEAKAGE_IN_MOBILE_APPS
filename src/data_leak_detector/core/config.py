@@ -27,6 +27,8 @@ class AppConfig:
     
     def __post_init__(self) -> None:
         self.resources_dir = self.base_dir / "resources"
-        self.database_path = self.base_dir / "analysis_history.sqlite3"
+        from data_leak_detector.storage.database import get_default_database_path
+        self.database_path = get_default_database_path()
         self.temp_dir = self.base_dir / "temp_decompiled"
         self.temp_dir.mkdir(parents=True, exist_ok=True)
+
