@@ -565,12 +565,74 @@ APKMetadata = ApplicationMetadata
 
 @dataclass
 class RiskScore(BaseModel):
-    """Backwards-compatible wrapper for score and risk rating."""
+    """Academic prototype risk score calculation result and explainability breakdown."""
 
     score: float
-    level: Severity
-    summary: str
+    rating: RiskRating = RiskRating.MINIMAL
+    level: Union[Severity, str, None] = None
+    summary: str = ""
+    disclaimer: str = (
+        "This risk score is a heuristic prioritisation metric developed for this research prototype "
+        "and should not be interpreted as CVSS or proof of exploitation."
+    )
+    breakdown: dict[str, Any] = field(default_factory=dict)
+    category_scores: dict[str, float] = field(default_factory=dict)
+    findings_evaluated: int = 0
+    findings_deduplicated: int = 0
+    rule_contributions: dict[str, float] = field(default_factory=dict)
+    explanations: list[str] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         if not (0.0 <= self.score <= 100.0):
             raise ValueError(f"Score must be between 0.0 and 100.0, got {self.score}")
+        if not isinstance(self.rating, RiskRating):
+            try:
+                self.rating = RiskRating(self.rating)
+            except ValueError:
+                self.rating = RiskRating.MINIMAL
+        if self.level is None:
+            severity_map = {
+                RiskRating.CRITICAL: Severity.CRITICAL,
+                RiskRating.HIGH: Severity.HIGH,
+                RiskRating.MEDIUM: Severity.MEDIUM,
+                RiskRating.LOW: Severity.LOW,
+                RiskRating.MINIMAL: Severity.INFO,
+            }
+            self.level = severity_map.get(self.rating, Severity.INFO)
+
+    @classmethod
+    def from_dict(cls: Type[RiskScore], data: dict[str, Any]) -> RiskScore:
+        """Reconstruct RiskScore from dictionary."""
+        d = dict(data)
+        rating_raw = d.get("rating", d.get("level", "MINIMAL"))
+        try:
+            rating_val = RiskRating(rating_raw)
+        except ValueError:
+            rating_val = RiskRating.MINIMAL
+
+        return cls(
+            score=float(d["score"]),
+            rating=rating_val,
+            level=d.get("level"),
+            summary=d.get("summary", ""),
+            disclaimer=d.get(
+                "disclaimer",
+                "This risk score is a heuristic prioritisation metric developed for this research prototype "
+                "and should not be interpreted as CVSS or proof of exploitation.",
+            ),
+            breakdown=dict(d.get("breakdown", {})),
+            category_scores=dict(d.get("category_scores", {})),
+            findings_evaluated=int(d.get("findings_evaluated", 0)),
+            findings_deduplicated=int(d.get("findings_deduplicated", 0)),
+            rule_contributions=dict(d.get("rule_contributions", {})),
+            explanations=list(d.get("explanations", [])),
+        )
+
+    @classmethod
+    def from_json(cls: Type[RiskScore], json_str: str) -> RiskScore:
+        """Reconstruct RiskScore from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+
+RiskScoreResult = RiskScore
+

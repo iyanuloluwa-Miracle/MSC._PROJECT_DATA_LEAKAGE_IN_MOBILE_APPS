@@ -37,21 +37,21 @@ This task backlog maps all upcoming engineering deliverables to the functional a
 - [x] **TASK-301: Manifest Security Rules (`manifest_rules.py`)**
   - *Requirements*: FR-04
   - Implement checks for `allowBackup`, `debuggable`, exported components without permissions.
-- [ ] **TASK-302: Network Indicator Detection (`network_rules.py`)**
+- [x] **TASK-302: Network Indicator Detection (`network_rules.py`)**
   - *Requirements*: FR-03, NFR-06
-  - Statically detect cleartext `http://` URLs and network security configuration bypasses.
+  - Statically detect cleartext `http://` URLs, cleartext traffic configs, trust-all X.509 managers, permissive HostnameVerifiers, SSL bypasses, insecure WebView configs, tracking domains, and third-party endpoints.
 - [x] **TASK-303: Secret & Credential Scanner (`secret_rules.py`)**
   - *Requirements*: FR-04, NFR-06
   - Detect high-entropy API tokens and cloud credentials with automatic redaction.
-- [ ] **TASK-304: Insecure Storage & Crypto Rules (`storage_rules.py`, `crypto_rules.py`)**
+- [x] **TASK-304: Insecure Storage & Crypto Rules (`storage_rules.py`, `crypto_rules.py`)**
   - *Requirements*: FR-04
-  - Detect world-readable storage calls, weak crypto primitives (MD5, DES, AES/ECB).
-- [ ] **TASK-305: Tracking & Telemetry SDK Detector (`sdk_rules.py`)**
+  - Statically detect world-readable storage calls, external sensitive storage, plaintext SharedPreferences/SQLite, logcat leaks, sensitive cache, weak ciphers (DES/3DES/RC4), ECB mode, static IVs, hardcoded keys, obsolete hashing in security contexts, and insecure PRNGs.
+- [x] **TASK-305: Tracking & Telemetry SDK Detector (`sdk_rules.py`)**
   - *Requirements*: FR-03
-  - Match package and class hierarchies against ad/analytics patterns.
-- [ ] **TASK-306: Weighted Risk Scorer (`risk_scorer.py`)**
+  - Match package and class hierarchies against configurable `sdk_patterns.json` (7 categories), generate informational findings, and evaluate SDK Permission Exposure against host permissions.
+- [x] **TASK-306: Weighted Risk Scorer (`risk_scorer.py`)**
   - *Requirements*: FR-01, FR-04
-  - Calculate normalized composite risk score (0-100) and severity rating.
+  - Calculate normalized composite risk score (0-100) and severity rating using explainable severity base weights, confidence multipliers, low-severity cap, category caps, and deduplication.
 
 ---
 

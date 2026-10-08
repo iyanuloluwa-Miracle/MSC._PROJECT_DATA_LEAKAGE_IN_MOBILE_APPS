@@ -28,5 +28,167 @@
       "severity": "CRITICAL",
       "description": "Hardcoded cloud credential or service token embedded in strings."
     }
+  ],
+  "tracking_domains": [
+    {
+      "domain": "google-analytics.com",
+      "name": "Google Analytics",
+      "category": "Analytics"
+    },
+    {
+      "domain": "googletagmanager.com",
+      "name": "Google Tag Manager",
+      "category": "Tag Management & Analytics"
+    },
+    {
+      "domain": "app-measurement.com",
+      "name": "Firebase App Measurement",
+      "category": "Analytics & Telemetry"
+    },
+    {
+      "domain": "crashlytics.com",
+      "name": "Crashlytics",
+      "category": "Crash Reporting & Telemetry"
+    },
+    {
+      "domain": "flurry.com",
+      "name": "Yahoo Flurry Analytics",
+      "category": "Analytics"
+    },
+    {
+      "domain": "appsflyer.com",
+      "name": "AppsFlyer",
+      "category": "Mobile Attribution & Marketing"
+    },
+    {
+      "domain": "adjust.com",
+      "name": "Adjust",
+      "category": "Mobile Attribution & Analytics"
+    },
+    {
+      "domain": "branch.io",
+      "name": "Branch Metrics",
+      "category": "Deep Linking & Attribution"
+    },
+    {
+      "domain": "amplitude.com",
+      "name": "Amplitude",
+      "category": "Product Analytics"
+    },
+    {
+      "domain": "mixpanel.com",
+      "name": "Mixpanel",
+      "category": "Product Analytics"
+    },
+    {
+      "domain": "doubleclick.net",
+      "name": "Google DoubleClick",
+      "category": "Advertising"
+    },
+    {
+      "domain": "admob.com",
+      "name": "Google AdMob",
+      "category": "Mobile Advertising"
+    },
+    {
+      "domain": "scorecardresearch.com",
+      "name": "ScorecardResearch",
+      "category": "Market Research & Tracking"
+    },
+    {
+      "domain": "kochava.com",
+      "name": "Kochava",
+      "category": "Attribution & Analytics"
+    },
+    {
+      "domain": "onesignal.com",
+      "name": "OneSignal",
+      "category": "Push Notifications & Telemetry"
+    },
+    {
+      "domain": "facebook.com/tr",
+      "name": "Meta Pixel / Facebook Tracking",
+      "category": "Advertising Tracking"
+    },
+    {
+      "domain": "graph.facebook.com",
+      "name": "Facebook Graph API / App Events",
+      "category": "Social & Ad Telemetry"
+    },
+    {
+      "domain": "mparticle.com",
+      "name": "mParticle",
+      "category": "Customer Data Platform"
+    },
+    {
+      "domain": "braze.com",
+      "name": "Braze / Appboy",
+      "category": "Customer Engagement & Analytics"
+    },
+    {
+      "domain": "singular.net",
+      "name": "Singular",
+      "category": "Marketing Analytics & Attribution"
+    },
+    {
+      "domain": "applovin.com",
+      "name": "AppLovin",
+      "category": "Ad Network & Monetization"
+    },
+    {
+      "domain": "vungle.com",
+      "name": "Vungle / Liftoff",
+      "category": "Mobile Video Advertising"
+    },
+    {
+      "domain": "chartboost.com",
+      "name": "Chartboost",
+      "category": "Mobile Game Advertising"
+    },
+    {
+      "domain": "tapjoy.com",
+      "name": "Tapjoy",
+      "category": "Mobile Advertising & Offerwall"
+    },
+    {
+      "domain": "ironsrc.com",
+      "name": "ironSource",
+      "category": "Ad Network & Mediation"
+    },
+    {
+      "domain": "criteo.com",
+      "name": "Criteo",
+      "category": "Retargeting & Advertising"
+    },
+    {
+      "domain": "segment.io",
+      "name": "Segment / Twilio",
+      "category": "Customer Data Tracking"
+    },
+    {
+      "domain": "smartlook.com",
+      "name": "Smartlook",
+      "category": "Session Recording & Telemetry"
+    },
+    {
+      "domain": "hotjar.com",
+      "name": "Hotjar",
+      "category": "Behavior Analytics"
+    },
+    {
+      "domain": "moatads.com",
+      "name": "Moat / Oracle Advertising",
+      "category": "Ad Verification & Tracking"
+    },
+    {
+      "domain": "quantserve.com",
+      "name": "Quantcast",
+      "category": "Audience Measurement"
+    },
+    {
+      "domain": "comscore.com",
+      "name": "Comscore",
+      "category": "Audience Measurement"
+    }
   ]
 }

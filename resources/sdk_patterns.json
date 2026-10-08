@@ -1,33 +1,197 @@
 {
+  "sdk_definitions": [
+    {
+      "id": "google_admob",
+      "name": "Google AdMob",
+      "category": "advertising",
+      "package_pattern": "com\\.(?:google\\.android\\.gms\\.ads|google\\.ads)",
+      "description": "Mobile advertising network and monetization platform.",
+      "risk_profile": "Monetization SDK with advertising ID collection and ad tracking capabilities.",
+      "sensitive_families": ["location", "phone", "storage"]
+    },
+    {
+      "id": "firebase_analytics",
+      "name": "Firebase Analytics / Google Measurement",
+      "category": "analytics",
+      "package_pattern": "com\\.google\\.android\\.gms\\.measurement",
+      "description": "App usage telemetry, event tracking, and attribution platform.",
+      "risk_profile": "Collects user interaction, screen views, and device metadata.",
+      "sensitive_families": ["location", "phone"]
+    },
+    {
+      "id": "facebook_sdk",
+      "name": "Meta / Facebook SDK & Audience Network",
+      "category": "social",
+      "package_pattern": "com\\.facebook\\.(?:ads|appevents|login|share|bolts)",
+      "description": "Social graph integration, single sign-on, and ad measurement.",
+      "risk_profile": "Correlates mobile user events with Facebook social profiles.",
+      "sensitive_families": ["location", "contacts", "camera", "storage"]
+    },
+    {
+      "id": "crashlytics",
+      "name": "Firebase Crashlytics",
+      "category": "crash reporting",
+      "package_pattern": "com\\.(?:google\\.firebase\\.crashlytics|crashlytics)",
+      "description": "Real-time crash analysis and diagnostic telemetry reporting.",
+      "risk_profile": "Collects stack traces, OS versions, device models, and log messages.",
+      "sensitive_families": ["storage", "phone"]
+    },
+    {
+      "id": "sentry",
+      "name": "Sentry SDK",
+      "category": "crash reporting",
+      "package_pattern": "io\\.sentry",
+      "description": "Application monitoring and crash error logging.",
+      "risk_profile": "Logs error traces, breadcrumbs, and performance telemetry.",
+      "sensitive_families": ["storage"]
+    },
+    {
+      "id": "appsflyer",
+      "name": "AppsFlyer",
+      "category": "analytics",
+      "package_pattern": "com\\.appsflyer",
+      "description": "Mobile attribution, deep linking, and marketing measurement.",
+      "risk_profile": "Profiles advertising attribution across install campaigns.",
+      "sensitive_families": ["location", "phone"]
+    },
+    {
+      "id": "adjust",
+      "name": "Adjust SDK",
+      "category": "analytics",
+      "package_pattern": "com\\.adjust\\.sdk",
+      "description": "Mobile attribution and app measurement telemetry.",
+      "risk_profile": "Measures user acquisition campaigns and in-app events.",
+      "sensitive_families": ["location", "phone"]
+    },
+    {
+      "id": "amplitude",
+      "name": "Amplitude",
+      "category": "analytics",
+      "package_pattern": "com\\.amplitude",
+      "description": "Product analytics and user behavior event tracking.",
+      "risk_profile": "Captures detailed event streams and user funnel metrics.",
+      "sensitive_families": ["location"]
+    },
+    {
+      "id": "mixpanel",
+      "name": "Mixpanel",
+      "category": "analytics",
+      "package_pattern": "com\\.mixpanel\\.android",
+      "description": "Event tracking and product interaction telemetry.",
+      "risk_profile": "Monitors custom events and user retention cohorts.",
+      "sensitive_families": ["location"]
+    },
+    {
+      "id": "unity_ads",
+      "name": "Unity Ads",
+      "category": "advertising",
+      "package_pattern": "com\\.unity3d\\.(?:services\\.ads|ads)",
+      "description": "In-game video and interstitial advertising network.",
+      "risk_profile": "Delivers targeted game ads and monetization tracking.",
+      "sensitive_families": ["storage", "location"]
+    },
+    {
+      "id": "applovin",
+      "name": "AppLovin MAX",
+      "category": "advertising",
+      "package_pattern": "com\\.applovin",
+      "description": "Mobile ad mediation and programmatic monetization.",
+      "risk_profile": "Serves auction-based ad impressions and collects device identifiers.",
+      "sensitive_families": ["location", "storage"]
+    },
+    {
+      "id": "ironsource",
+      "name": "ironSource",
+      "category": "advertising",
+      "package_pattern": "com\\.ironsource",
+      "description": "Ad monetization platform and mediation manager.",
+      "risk_profile": "Serves rewarded video ads and attribution metrics.",
+      "sensitive_families": ["location", "storage"]
+    },
+    {
+      "id": "stripe",
+      "name": "Stripe Android SDK",
+      "category": "payments",
+      "package_pattern": "com\\.stripe\\.android",
+      "description": "Credit card tokenization, payment sheet, and checkout handling.",
+      "risk_profile": "Processes payment card tokens and billing metadata securely.",
+      "sensitive_families": ["camera", "storage"]
+    },
+    {
+      "id": "braintree_paypal",
+      "name": "Braintree / PayPal SDK",
+      "category": "payments",
+      "package_pattern": "com\\.(?:braintreepayments|paypal\\.android)",
+      "description": "Mobile payment gateway processing.",
+      "risk_profile": "Facilitates checkout sessions and payment credential tokenization.",
+      "sensitive_families": []
+    },
+    {
+      "id": "onesignal",
+      "name": "OneSignal",
+      "category": "push notifications",
+      "package_pattern": "com\\.onesignal",
+      "description": "Push notification delivery and engagement tracking.",
+      "risk_profile": "Maintains push subscription tokens and location-based push segmentation.",
+      "sensitive_families": ["location", "notifications"]
+    },
+    {
+      "id": "firebase_messaging",
+      "name": "Firebase Cloud Messaging (FCM)",
+      "category": "push notifications",
+      "package_pattern": "com\\.google\\.firebase\\.messaging",
+      "description": "Cross-platform cloud push messaging service.",
+      "risk_profile": "Handles registration tokens and remote notification payloads.",
+      "sensitive_families": ["notifications"]
+    },
+    {
+      "id": "mapbox",
+      "name": "Mapbox Maps & Location SDK",
+      "category": "location",
+      "package_pattern": "com\\.mapbox",
+      "description": "Vector maps rendering, navigation, and location telemetry.",
+      "risk_profile": "Provides map tile rendering and location routing services.",
+      "sensitive_families": ["location", "storage"]
+    },
+    {
+      "id": "radar",
+      "name": "Radar Geofencing SDK",
+      "category": "location",
+      "package_pattern": "io\\.radar\\.sdk",
+      "description": "Location tracking, geofencing, and places detection.",
+      "risk_profile": "Tracks background device location for geofencing triggers.",
+      "sensitive_families": ["location"]
+    }
+  ],
   "ad_and_analytics_sdks": [
     {
       "name": "Google AdMob / Firebase Analytics",
       "package_pattern": "com\\.google\\.android\\.gms\\.(ads|measurement)",
-      "category": "ADVERTISING_ANALYTICS",
+      "category": "advertising",
       "risk_note": "Collects advertising ID and app interaction metrics."
     },
     {
       "name": "Facebook Audience Network / SDK",
       "package_pattern": "com\\.facebook\\.(ads|appevents)",
-      "category": "ADVERTISING_ANALYTICS",
+      "category": "social",
       "risk_note": "Transmits profile-correlated telemetry and marketing IDs."
     },
     {
       "name": "AppsFlyer",
       "package_pattern": "com\\.appsflyer",
-      "category": "ATTRIBUTION_TRACKING",
+      "category": "analytics",
       "risk_note": "Install attribution and deep-linking device identifier profiling."
     },
     {
       "name": "Adjust",
       "package_pattern": "com\\.adjust\\.sdk",
-      "category": "ATTRIBUTION_TRACKING",
+      "category": "analytics",
       "risk_note": "Attribution and mobile measurement device telemetry."
     },
     {
       "name": "Unity Ads",
       "package_pattern": "com\\.unity3d\\.services\\.ads",
-      "category": "ADVERTISING",
+      "category": "advertising",
       "risk_note": "Collects gaming telemetry and monetization data."
     }
   ]
