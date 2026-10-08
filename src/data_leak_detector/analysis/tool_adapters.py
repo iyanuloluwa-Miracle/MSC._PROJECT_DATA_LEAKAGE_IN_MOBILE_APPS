@@ -65,12 +65,22 @@ def temporary_decompilation_dir(prefix: str = "mld_tmp_") -> Generator[Path, Non
 class ToolAdapter(ABC):
     """Abstract base adapter for safe subprocess execution of external CLI tools."""
 
-    def __init__(self, executable_name: str, timeout_seconds: int = 120) -> None:
-        self.executable_name = executable_name
+    def __init__(
+        self,
+        executable_name: str,
+        timeout_seconds: int = 120,
+        custom_path: Path | str | None = None,
+    ) -> None:
+        self.custom_path = Path(custom_path) if custom_path else None
+        self.executable_name = str(self.custom_path) if self.custom_path else executable_name
         self.timeout_seconds = timeout_seconds
 
     def is_available(self) -> bool:
-        """Check if the external CLI binary is available on system PATH."""
+        """Check if the external CLI binary is available on system PATH or custom path."""
+        if self.custom_path:
+            return self.custom_path.exists() and (
+                self.custom_path.is_file() or shutil.which(str(self.custom_path)) is not None
+            )
         return shutil.which(self.executable_name) is not None
 
     def _execute_subprocess(self, cmd_args: Sequence[str], output_dir: Path | None = None) -> bool:
@@ -136,8 +146,12 @@ class ToolAdapter(ABC):
 class JadxAdapter(ToolAdapter):
     """Subprocess adapter for JADX decompiler with graceful degradation."""
 
-    def __init__(self, timeout_seconds: int = 120) -> None:
-        super().__init__("jadx", timeout_seconds=timeout_seconds)
+    def __init__(
+        self,
+        timeout_seconds: int = 120,
+        custom_path: Path | str | None = None,
+    ) -> None:
+        super().__init__("jadx", timeout_seconds=timeout_seconds, custom_path=custom_path)
 
     def run(self, apk_path: Path, output_dir: Path) -> bool:
         """Decompile APK to Java source files via JADX.
@@ -179,8 +193,12 @@ class JadxAdapter(ToolAdapter):
 class ApktoolAdapter(ToolAdapter):
     """Subprocess adapter for Apktool resource decoder with graceful degradation."""
 
-    def __init__(self, timeout_seconds: int = 120) -> None:
-        super().__init__("apktool", timeout_seconds=timeout_seconds)
+    def __init__(
+        self,
+        timeout_seconds: int = 120,
+        custom_path: Path | str | None = None,
+    ) -> None:
+        super().__init__("apktool", timeout_seconds=timeout_seconds, custom_path=custom_path)
 
     def run(self, apk_path: Path, output_dir: Path) -> bool:
         """Decode APK resources via Apktool.

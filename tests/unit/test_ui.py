@@ -36,6 +36,9 @@ from data_leak_detector.ui.settings_view import SettingsView
 from data_leak_detector.ui.widgets import (
     DropZone,
     EmptyState,
+    ExpandableFindingCard,
+    ExportToolbar,
+    FilterBar,
     MetricCard,
     SeverityBadge,
 )
@@ -233,24 +236,117 @@ class TestTkinterUI(unittest.TestCase):
         self.assertEqual(res_view.card_med.value_label.cget("text"), "1")
         self.assertEqual(res_view.card_low.value_label.cget("text"), "0")
 
-        # Check Treeview findings
+        # Check Finding Card Widgets count
+        self.assertEqual(len(res_view._finding_card_widgets), 4)
+
+        # Check Treeview findings (compatibility)
         children = res_view.vuln_tree.get_children()
         self.assertEqual(len(children), 4)
 
-        # Check Master-Detail selection
-        res_view.vuln_tree.selection_set(children[0])
-        res_view._on_vuln_selected(None)
-        self.assertIn("SEC-001", res_view.detail_title_lbl.cget("text"))
-        self.assertIn("sample_api_key", res_view.evidence_text.get("1.0", tk.END))
-
-        # Check Permissions tree
+        # Check Permissions tree (2 permissions)
         perm_children = res_view.perm_tree.get_children()
         self.assertEqual(len(perm_children), 2)
+
+        # Check 5 columns in permission tree
+        cols = res_view.perm_tree["columns"]
+        self.assertEqual(
+            list(cols),
+            ["permission", "protection_level", "risk_level", "description", "reason"],
+        )
 
         # Check App Details tree
         detail_children = res_view.details_tree.get_children()
         self.assertGreater(len(detail_children), 5)
 
+        # Check Category Breakdown Labels
+        self.assertIn("Secrets", res_view.cat_count_labels)
+        self.assertIn("1 findings", res_view.cat_count_labels["Secrets"].cget("text"))
+
+        res_view.destroy()
+
+    def test_expandable_finding_card(self) -> None:
+        """Verify ExpandableFindingCard displays summary, toggles details, and redacts evidence."""
+        mock_result = _make_mock_result()
+        finding = mock_result.findings[0]
+
+        card = ExpandableFindingCard(self.root, finding=finding)
+
+        # Check initial state: collapsed
+        self.assertFalse(card.is_expanded)
+        self.assertEqual(card.title_lbl.cget("text"), finding.title)
+        self.assertIn("SEC-001", card.finding.rule_id)
+
+        # Check plain-language explanation
+        self.assertEqual(card.desc_lbl.cget("text"), finding.description)
+
+        # Expand card
+        card.expand()
+        self.assertTrue(card.is_expanded)
+        self.assertEqual(card.btn_toggle.cget("text"), "▲ Collapse")
+
+        # Verify evidence is strictly sanitized
+        self.assertIn("sample_api_key", card.sanitized_evidence)
+        self.assertIn("********", card.sanitized_evidence)
+
+        # Collapse card
+        card.collapse()
+        self.assertFalse(card.is_expanded)
+        self.assertEqual(card.btn_toggle.cget("text"), "▼ Details")
+
+        card.destroy()
+
+    def test_filter_bar_and_category_filtering(self) -> None:
+        """Verify Severity filter, Category filter, and search filter in ResultsView."""
+        res_view = ResultsView(self.root)
+        mock_result = _make_mock_result()
+        res_view.display_results(mock_result)
+
+        # Total findings initially
+        self.assertEqual(len(res_view._finding_card_widgets), 4)
+
+        # 1. Filter by Severity: CRITICAL
+        res_view.filter_bar.sev_var.set("Critical")
+        res_view._apply_finding_filters()
+        self.assertEqual(len(res_view._finding_card_widgets), 1)
+
+        # 2. Filter by Category: Network
+        res_view.filter_bar.sev_var.set("All")
+        res_view.filter_bar.cat_var.set("Network")
+        res_view._apply_finding_filters()
+        self.assertEqual(len(res_view._finding_card_widgets), 1)
+        self.assertIn("Cleartext HTTP", res_view._finding_card_widgets[0].finding.title)
+
+        # 3. Filter by Category: Secrets
+        res_view.filter_bar.cat_var.set("Secrets")
+        res_view._apply_finding_filters()
+        self.assertEqual(len(res_view._finding_card_widgets), 1)
+        self.assertIn("Hardcoded API Secret", res_view._finding_card_widgets[0].finding.title)
+
+        # 4. Search filter: "Storage"
+        res_view.filter_bar.cat_var.set("All")
+        res_view.filter_bar.search_var.set("MODE_WORLD_READABLE")
+        res_view._apply_finding_filters()
+        self.assertEqual(len(res_view._finding_card_widgets), 1)
+        self.assertIn("World-Readable", res_view._finding_card_widgets[0].finding.title)
+
+        # 5. Reset filters
+        res_view.filter_bar.reset_filters()
+        self.assertEqual(len(res_view._finding_card_widgets), 4)
+
+        # 6. Expand all and Collapse all
+        res_view._expand_all_cards()
+        self.assertTrue(all(c.is_expanded for c in res_view._finding_card_widgets))
+        res_view._collapse_all_cards()
+        self.assertTrue(all(not c.is_expanded for c in res_view._finding_card_widgets))
+
+        res_view.destroy()
+
+    def test_export_buttons_presence(self) -> None:
+        """Verify Export PDF, Export HTML, and Export TXT buttons exist in ResultsView."""
+        res_view = ResultsView(self.root)
+        self.assertIsNotNone(res_view.btn_export_pdf)
+        self.assertIsNotNone(res_view.btn_export_html)
+        self.assertIsNotNone(res_view.btn_export_txt)
         res_view.destroy()
 
     def test_analyze_view_queue_and_state(self) -> None:
@@ -273,18 +369,39 @@ class TestTkinterUI(unittest.TestCase):
         analyze_view.destroy()
 
     def test_history_view_operations(self) -> None:
-        """Verify HistoryView lists scans, filters results, and removes entries."""
+        """Verify HistoryView lists scans, columns, search by app/package, sort, open, delete, and clear."""
+        from unittest.mock import patch
+
         db = DatabaseManager(self.config.database_path)
         mock_result = _make_mock_result()
         db.save_result(mock_result)
 
-        history_view = HistoryView(self.root, config=self.config)
+        inspected_results = []
+        history_view = HistoryView(
+            self.root,
+            config=self.config,
+            on_inspect_result=lambda res: inspected_results.append(res),
+        )
         history_view.refresh_history()
 
         children = history_view.tree.get_children()
         self.assertEqual(len(children), 1)
 
-        # Test search filter match
+        # Check column values: app_name, package_name, version, created_at, risk_score, risk_rating
+        values = history_view.tree.item(children[0], "values")
+        self.assertEqual(values[0], "Audit Test App")  # application name
+        self.assertEqual(values[1], "com.example.audittest")  # package name
+        self.assertEqual(values[2], "2.1.0")  # version
+        self.assertTrue(len(values[3]) > 0)  # analysis date
+        self.assertTrue("85" in values[4] or "100" in values[4])  # risk score
+        self.assertEqual(values[5], "HIGH")  # risk rating
+
+        # Test search by application name
+        history_view.search_var.set("Audit Test")
+        history_view._apply_search_filter()
+        self.assertEqual(len(history_view.tree.get_children()), 1)
+
+        # Test search by package name
         history_view.search_var.set("audittest")
         history_view._apply_search_filter()
         self.assertEqual(len(history_view.tree.get_children()), 1)
@@ -299,19 +416,70 @@ class TestTkinterUI(unittest.TestCase):
         history_view._apply_search_filter()
         self.assertEqual(len(history_view.tree.get_children()), 1)
 
+        # Test sorting
+        history_view.sort_var.set("Oldest First")
+        history_view._apply_search_filter()
+        self.assertEqual(len(history_view.tree.get_children()), 1)
+
+        history_view.sort_var.set("Newest First")
+        history_view._apply_search_filter()
+        self.assertEqual(len(history_view.tree.get_children()), 1)
+
+        # Test Open Previous Result
+        history_view.tree.selection_set(children[0])
+        history_view.open_previous_result()
+        self.assertEqual(len(inspected_results), 1)
+        self.assertEqual(inspected_results[0].application.package_name, "com.example.audittest")
+
+        # Test Delete Result (with mocked confirmation)
+        with patch("tkinter.messagebox.askyesno", return_value=True), patch("tkinter.messagebox.showinfo"):
+            history_view.delete_result()
+            self.assertEqual(len(history_view.tree.get_children()), 0)
+
+        # Re-save and Test Clear History (with mocked confirmation)
+        db.save_result(mock_result)
+        history_view.refresh_history()
+        self.assertEqual(len(history_view.tree.get_children()), 1)
+
+        with patch("tkinter.messagebox.askyesno", return_value=True), patch("tkinter.messagebox.showinfo"):
+            history_view.clear_history()
+            self.assertEqual(len(history_view.tree.get_children()), 0)
+
         history_view.destroy()
 
     def test_settings_view(self) -> None:
-        """Verify SettingsView updates timeout preferences."""
+        """Verify SettingsView updates preferences, diagnostic check, rule toggles, and reset."""
         from unittest.mock import patch
         with patch("tkinter.messagebox.showinfo"):
             settings_view = SettingsView(self.root, config=self.config)
-            settings_view.timeout_var.set("180")
-            settings_view._save_settings()
-            self.assertEqual(self.config.subprocess_timeout_seconds, 180)
+            
+            # Check Tools button execution
+            settings_view.check_tools()
+            self.assertTrue(hasattr(settings_view, "androguard_status_lbl"))
+            self.assertTrue(hasattr(settings_view, "apktool_status_lbl"))
+            self.assertTrue(hasattr(settings_view, "jadx_status_lbl"))
+            self.assertTrue(hasattr(settings_view, "java_status_lbl"))
 
-            settings_view._reset_defaults()
-            self.assertEqual(self.config.subprocess_timeout_seconds, 120)
+            # Update paths, preferences, and rules
+            settings_view.timeout_var.set("180")
+            settings_view.high_contrast_var.set(True)
+            settings_view.report_fmt_var.set("HTML")
+            settings_view.rule_manifest_var.set(False)
+            settings_view.save_settings()
+
+            self.assertEqual(self.config.subprocess_timeout_seconds, 180)
+            self.assertTrue(self.config.high_contrast_mode)
+            self.assertEqual(self.config.report_default_format, "HTML")
+            self.assertFalse(self.config.enable_manifest_rules)
+
+            # Test Reset Settings
+            with patch("tkinter.messagebox.askyesno", return_value=True):
+                settings_view.reset_settings()
+                self.assertEqual(self.config.subprocess_timeout_seconds, 120)
+                self.assertFalse(self.config.high_contrast_mode)
+                self.assertEqual(self.config.report_default_format, "PDF")
+                self.assertTrue(self.config.enable_manifest_rules)
+
             settings_view.destroy()
 
     def test_about_view(self) -> None:

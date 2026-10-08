@@ -1,4 +1,4 @@
-"""Results View: Findings breakdown, risk score gauges, and report export buttons."""
+"""Results View: Findings breakdown, expandable finding cards, filters, and report export buttons."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from tkinter import filedialog, messagebox, ttk
 from typing import Any
 
 from data_leak_detector.core.models import AnalysisResult, SecurityFinding, Severity
+from data_leak_detector.core.redactor import redact_text_secrets
 from data_leak_detector.reporting.report_generator import ReportGenerator
 from data_leak_detector.ui.widgets import (
     COLOR_ACCENT,
@@ -17,6 +18,7 @@ from data_leak_detector.ui.widgets import (
     COLOR_CARD_BG,
     COLOR_TEXT_MUTED,
     COLOR_TEXT_PRIMARY,
+    COLOR_TEXT_SECONDARY,
     FONT_BODY,
     FONT_BODY_BOLD,
     FONT_CODE,
@@ -24,43 +26,69 @@ from data_leak_detector.ui.widgets import (
     FONT_SMALL,
     FONT_SUBHEADING,
     FONT_TITLE,
-    SEVERITY_COLORS,
     DisclaimerBanner,
     EmptyState,
+    ExpandableFindingCard,
+    ExportToolbar,
+    FilterBar,
     MetricCard,
-    SeverityBadge,
+    ScrollableFrame,
 )
 
 logger = logging.getLogger(__name__)
 
 
+def _normalize_category(cat_val: Any) -> str:
+    """Normalize raw finding category into one of the canonical UI categories."""
+    raw = str(cat_val.value if hasattr(cat_val, "value") else cat_val).upper().replace(" ", "_")
+    if "SECRET" in raw:
+        return "Secrets"
+    elif "NET" in raw:
+        return "Network"
+    elif "STOR" in raw:
+        return "Storage"
+    elif "CRYPTO" in raw:
+        return "Cryptography"
+    elif "SDK" in raw:
+        return "Third-Party SDK"
+    elif "PERM" in raw:
+        return "Permissions"
+    elif "MANIFEST" in raw:
+        return "Manifest"
+    else:
+        return "Other"
+
+
 class ResultsView(ttk.Frame):
-    """View rendering detailed static findings, risk score, and export options."""
+    """View rendering detailed static findings, risk score, expandable cards, and export options."""
 
     def __init__(self, master: tk.Misc, *args, **kwargs) -> None:
         super().__init__(master, *args, **kwargs)
         self.current_result: AnalysisResult | None = None
         self._all_findings: list[SecurityFinding] = []
         self._filtered_findings: list[SecurityFinding] = []
+        self._finding_card_widgets: list[ExpandableFindingCard] = []
 
         self._init_layout()
 
     def _init_layout(self) -> None:
-        """Construct the results layout with summary cards and tabs."""
-        # Top Container: RESULTS SUMMARY
+        """Construct the results layout with summary dashboard, filters, and tabs."""
+        # =====================================================================
+        # TOP CONTAINER: SUMMARY DASHBOARD BANNER
+        # =====================================================================
         self.summary_card = tk.Frame(
             self,
             bg=COLOR_CARD_BG,
             highlightbackground=COLOR_BORDER_LIGHT,
             highlightthickness=1,
             padx=16,
-            pady=14,
+            pady=12,
         )
         self.summary_card.pack(fill=tk.X, padx=16, pady=(12, 10))
 
         # Risk Score + Rating banner (Left side of summary card)
         score_left = tk.Frame(self.summary_card, bg=COLOR_CARD_BG)
-        score_left.pack(side=tk.LEFT, padx=(0, 24))
+        score_left.pack(side=tk.LEFT, padx=(0, 20))
 
         tk.Label(
             score_left,
@@ -77,7 +105,7 @@ class ResultsView(ttk.Frame):
         self.score_val_lbl = tk.Label(
             score_row,
             text="--",
-            font=(FONT_TITLE[0], 26, "bold"),
+            font=(FONT_TITLE[0], 24, "bold"),
             bg=COLOR_CARD_BG,
             fg=COLOR_TEXT_PRIMARY,
         )
@@ -90,13 +118,13 @@ class ResultsView(ttk.Frame):
             bg=COLOR_CARD_BG,
             fg=COLOR_TEXT_MUTED,
         )
-        self.score_max_lbl.pack(side=tk.LEFT, pady=(6, 0))
+        self.score_max_lbl.pack(side=tk.LEFT, pady=(4, 0))
 
         self.rating_badge_frame = tk.Frame(
             score_left,
             bg="#94a3b8",
             padx=10,
-            pady=3,
+            pady=2,
         )
         self.rating_badge_frame.pack(anchor="w", pady=(2, 0))
         self.rating_lbl = tk.Label(
@@ -118,7 +146,7 @@ class ResultsView(ttk.Frame):
             value="0",
             accent_color="#dc2626",
         )
-        self.card_crit.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=4)
+        self.card_crit.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=3)
 
         self.card_high = MetricCard(
             self.cards_row,
@@ -126,7 +154,7 @@ class ResultsView(ttk.Frame):
             value="0",
             accent_color="#ea580c",
         )
-        self.card_high.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=4)
+        self.card_high.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=3)
 
         self.card_med = MetricCard(
             self.cards_row,
@@ -134,7 +162,7 @@ class ResultsView(ttk.Frame):
             value="0",
             accent_color="#d97706",
         )
-        self.card_med.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=4)
+        self.card_med.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=3)
 
         self.card_low = MetricCard(
             self.cards_row,
@@ -142,61 +170,37 @@ class ResultsView(ttk.Frame):
             value="0",
             accent_color="#2563eb",
         )
-        self.card_low.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=4)
+        self.card_low.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=3)
 
-        # Right: Export Report Actions
-        export_col = tk.Frame(self.summary_card, bg=COLOR_CARD_BG)
-        export_col.pack(side=tk.RIGHT, padx=(16, 0))
-
-        tk.Label(
-            export_col,
-            text="EXPORT REPORT",
-            font=FONT_SMALL,
-            bg=COLOR_CARD_BG,
-            fg=COLOR_TEXT_MUTED,
-            anchor="e",
-        ).pack(fill=tk.X, pady=(0, 4))
-
-        btn_row = tk.Frame(export_col, bg=COLOR_CARD_BG)
-        btn_row.pack()
-
-        self.btn_export_pdf = ttk.Button(
-            btn_row,
-            text="📄 PDF",
-            style="Secondary.TButton",
-            command=lambda: self._export_report("pdf"),
+        # Right: Export Report Actions Toolbar (PDF, HTML, TXT)
+        self.export_toolbar = ExportToolbar(
+            self.summary_card,
+            on_export_pdf=lambda: self._export_report("pdf"),
+            on_export_html=lambda: self._export_report("html"),
+            on_export_txt=lambda: self._export_report("text"),
         )
-        self.btn_export_pdf.pack(side=tk.LEFT, padx=2)
+        self.export_toolbar.pack(side=tk.RIGHT, padx=(16, 0))
 
-        self.btn_export_html = ttk.Button(
-            btn_row,
-            text="🌐 HTML",
-            style="Secondary.TButton",
-            command=lambda: self._export_report("html"),
-        )
-        self.btn_export_html.pack(side=tk.LEFT, padx=2)
+        # Backward compatibility references for buttons
+        self.btn_export_pdf = self.export_toolbar.btn_pdf
+        self.btn_export_html = self.export_toolbar.btn_html
+        self.btn_export_txt = self.export_toolbar.btn_txt
 
-        self.btn_export_txt = ttk.Button(
-            btn_row,
-            text="📝 Text",
-            style="Secondary.TButton",
-            command=lambda: self._export_report("text"),
-        )
-        self.btn_export_txt.pack(side=tk.LEFT, padx=2)
-
-        # Notebook tabs: Overview, Permissions, Vulnerabilities, Application Details
+        # =====================================================================
+        # NOTEBOOK TABS
+        # =====================================================================
         self.notebook = ttk.Notebook(self)
         self.notebook.pack(fill=tk.BOTH, expand=True, padx=16, pady=(0, 12))
 
         # Create tab containers
         self.tab_overview = ttk.Frame(self.notebook)
-        self.tab_permissions = ttk.Frame(self.notebook)
         self.tab_vulnerabilities = ttk.Frame(self.notebook)
+        self.tab_permissions = ttk.Frame(self.notebook)
         self.tab_app_details = ttk.Frame(self.notebook)
 
-        self.notebook.add(self.tab_overview, text="📊 Overview")
-        self.notebook.add(self.tab_vulnerabilities, text="🛡 Vulnerabilities")
-        self.notebook.add(self.tab_permissions, text="🔑 Permissions")
+        self.notebook.add(self.tab_overview, text="📊 Summary Dashboard")
+        self.notebook.add(self.tab_vulnerabilities, text="🛡 Vulnerabilities & Findings")
+        self.notebook.add(self.tab_permissions, text="🔑 Permission View")
         self.notebook.add(self.tab_app_details, text="ℹ Application Details")
 
         self._build_overview_tab()
@@ -205,16 +209,17 @@ class ResultsView(ttk.Frame):
         self._build_app_details_tab()
 
     # -------------------------------------------------------------------------
-    # TAB: OVERVIEW
+    # TAB: SUMMARY DASHBOARD
     # -------------------------------------------------------------------------
     def _build_overview_tab(self) -> None:
-        """Construct the Overview tab content."""
-        scroll_container = tk.Frame(self.tab_overview, bg=COLOR_BG)
-        scroll_container.pack(fill=tk.BOTH, expand=True, padx=12, pady=12)
+        """Construct the Summary Dashboard tab content."""
+        scroll = ScrollableFrame(self.tab_overview, bg=COLOR_BG)
+        scroll.pack(fill=tk.BOTH, expand=True, padx=12, pady=12)
+        container = scroll.scrollable_content
 
         # Executive summary box
         exec_card = tk.Frame(
-            scroll_container,
+            container,
             bg=COLOR_CARD_BG,
             highlightbackground=COLOR_BORDER_LIGHT,
             highlightthickness=1,
@@ -244,16 +249,78 @@ class ResultsView(ttk.Frame):
         )
         self.exec_summary_text.pack(fill=tk.X, pady=(8, 0))
 
-        # Key Findings Card
-        key_card = tk.Frame(
-            scroll_container,
+        # Category Breakdown Dashboard Card
+        self.cat_card = tk.Frame(
+            container,
             bg=COLOR_CARD_BG,
             highlightbackground=COLOR_BORDER_LIGHT,
             highlightthickness=1,
             padx=16,
             pady=14,
         )
-        key_card.pack(fill=tk.BOTH, expand=True, pady=(0, 12))
+        self.cat_card.pack(fill=tk.X, pady=(0, 12))
+
+        tk.Label(
+            self.cat_card,
+            text="Findings by Security Category",
+            font=FONT_HEADING,
+            bg=COLOR_CARD_BG,
+            fg=COLOR_TEXT_PRIMARY,
+            anchor="w",
+        ).pack(fill=tk.X, pady=(0, 8))
+
+        self.cat_grid = tk.Frame(self.cat_card, bg=COLOR_CARD_BG)
+        self.cat_grid.pack(fill=tk.X)
+        self.cat_count_labels: dict[str, tk.Label] = {}
+
+        # Pre-build grid rows for 8 categories
+        cats = [
+            ("Permissions", "Declared and requested permissions analysis"),
+            ("Network", "Cleartext HTTP, SSL/TLS validation, endpoints"),
+            ("Storage", "Plaintext storage, SharedPreferences, SQLite"),
+            ("Secrets", "API keys, tokens, hardcoded private credentials"),
+            ("Cryptography", "Weak ciphers, ECB mode, static IVs, hashing"),
+            ("Third-Party SDK", "Ad and analytics tracking telemetry exposure"),
+            ("Manifest", "Exported components, debuggable, allowBackup"),
+            ("Other", "Miscellaneous architectural hygiene findings"),
+        ]
+        for idx, (cat_name, cat_desc) in enumerate(cats):
+            r = idx // 2
+            c = (idx % 2) * 2
+
+            lbl_title = tk.Label(
+                self.cat_grid,
+                text=f"{cat_name}:",
+                font=FONT_BODY_BOLD,
+                bg=COLOR_CARD_BG,
+                fg=COLOR_TEXT_PRIMARY,
+                width=16,
+                anchor="w",
+            )
+            lbl_title.grid(row=r, column=c, sticky="w", padx=(10, 4), pady=4)
+
+            lbl_cnt = tk.Label(
+                self.cat_grid,
+                text="0 findings",
+                font=FONT_BODY,
+                bg=COLOR_CARD_BG,
+                fg=COLOR_ACCENT,
+                width=12,
+                anchor="w",
+            )
+            lbl_cnt.grid(row=r, column=c + 1, sticky="w", padx=(0, 20), pady=4)
+            self.cat_count_labels[cat_name] = lbl_cnt
+
+        # Key Findings Highlights Card
+        key_card = tk.Frame(
+            container,
+            bg=COLOR_CARD_BG,
+            highlightbackground=COLOR_BORDER_LIGHT,
+            highlightthickness=1,
+            padx=16,
+            pady=14,
+        )
+        key_card.pack(fill=tk.X, pady=(0, 12))
 
         tk.Label(
             key_card,
@@ -271,229 +338,188 @@ class ResultsView(ttk.Frame):
             fg=COLOR_TEXT_PRIMARY,
             bd=0,
             highlightthickness=0,
-            height=8,
+            height=6,
             wrap=tk.WORD,
         )
-        self.highlights_box.pack(fill=tk.BOTH, expand=True, pady=(8, 0))
+        self.highlights_box.pack(fill=tk.X, pady=(8, 0))
         self.highlights_box.insert(tk.END, "Run an analysis to review key security indicators.")
         self.highlights_box.config(state=tk.DISABLED)
 
-        # Methodology Disclaimer
-        disclaimer = DisclaimerBanner(scroll_container)
-        disclaimer.pack(fill=tk.X)
-
-    # -------------------------------------------------------------------------
-    # TAB: VULNERABILITIES (MASTER-DETAIL)
-    # -------------------------------------------------------------------------
-    def _build_vulnerabilities_tab(self) -> None:
-        """Construct the master-detail vulnerabilities tab."""
-        container = tk.Frame(self.tab_vulnerabilities, bg=COLOR_BG)
-        container.pack(fill=tk.BOTH, expand=True, padx=12, pady=12)
-
-        # Filter bar
-        filter_bar = tk.Frame(container, bg=COLOR_BG)
-        filter_bar.pack(fill=tk.X, pady=(0, 8))
-
-        tk.Label(
-            filter_bar,
-            text="Filter by Severity:",
-            font=FONT_BODY_BOLD,
-            bg=COLOR_BG,
-            fg=COLOR_TEXT_PRIMARY,
-        ).pack(side=tk.LEFT, padx=(0, 6))
-
-        self.sev_filter_var = tk.StringVar(value="ALL")
-        self.sev_filter_combo = ttk.Combobox(
-            filter_bar,
-            textvariable=self.sev_filter_var,
-            values=["ALL", "CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"],
-            state="readonly",
-            width=12,
-        )
-        self.sev_filter_combo.pack(side=tk.LEFT, padx=(0, 14))
-        self.sev_filter_combo.bind("<<ComboboxSelected>>", lambda e: self._apply_finding_filters())
-
-        tk.Label(
-            filter_bar,
-            text="Search:",
-            font=FONT_BODY_BOLD,
-            bg=COLOR_BG,
-            fg=COLOR_TEXT_PRIMARY,
-        ).pack(side=tk.LEFT, padx=(0, 6))
-
-        self.vuln_search_var = tk.StringVar()
-        self.vuln_search_entry = ttk.Entry(filter_bar, textvariable=self.vuln_search_var, width=28)
-        self.vuln_search_entry.pack(side=tk.LEFT)
-        self.vuln_search_entry.bind("<KeyRelease>", lambda e: self._apply_finding_filters())
-
-        self.vuln_count_lbl = tk.Label(
-            filter_bar,
-            text="0 findings",
-            font=FONT_SMALL,
-            bg=COLOR_BG,
-            fg=COLOR_TEXT_MUTED,
-        )
-        self.vuln_count_lbl.pack(side=tk.RIGHT)
-
-        # PanedWindow splitting Treeview (Master) and Detail View
-        paned = ttk.PanedWindow(container, orient=tk.VERTICAL)
-        paned.pack(fill=tk.BOTH, expand=True)
-
-        # Master Table (Treeview)
-        tree_frame = tk.Frame(paned, bg=COLOR_CARD_BG)
-        paned.add(tree_frame, weight=3)
-
-        columns = ("severity", "id", "title", "confidence", "category")
-        self.vuln_tree = ttk.Treeview(
-            tree_frame,
-            columns=columns,
-            show="headings",
-            selectmode="browse",
-        )
-        self.vuln_tree.heading("severity", text="Severity")
-        self.vuln_tree.heading("id", text="Rule ID")
-        self.vuln_tree.heading("title", text="Finding Title")
-        self.vuln_tree.heading("confidence", text="Confidence")
-        self.vuln_tree.heading("category", text="Category")
-
-        self.vuln_tree.column("severity", width=90, anchor="center")
-        self.vuln_tree.column("id", width=120, anchor="w")
-        self.vuln_tree.column("title", width=380, anchor="w")
-        self.vuln_tree.column("confidence", width=90, anchor="center")
-        self.vuln_tree.column("category", width=110, anchor="center")
-
-        tree_scroll = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL, command=self.vuln_tree.yview)
-        self.vuln_tree.configure(yscrollcommand=tree_scroll.set)
-
-        self.vuln_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        tree_scroll.pack(side=tk.RIGHT, fill=tk.Y)
-
-        self.vuln_tree.bind("<<TreeviewSelect>>", self._on_vuln_selected)
-
-        # Detail Pane
-        self.detail_frame = tk.Frame(
-            paned,
+        # Quick Action Export Section
+        export_box = tk.Frame(
+            container,
             bg=COLOR_CARD_BG,
             highlightbackground=COLOR_BORDER_LIGHT,
             highlightthickness=1,
             padx=16,
-            pady=12,
+            pady=14,
         )
-        paned.add(self.detail_frame, weight=4)
+        export_box.pack(fill=tk.X, pady=(0, 12))
 
-        # Detail Header
-        detail_header = tk.Frame(self.detail_frame, bg=COLOR_CARD_BG)
-        detail_header.pack(fill=tk.X, pady=(0, 6))
-
-        self.detail_title_lbl = tk.Label(
-            detail_header,
-            text="Select a finding to inspect static evidence and remediation.",
+        tk.Label(
+            export_box,
+            text="Export Audit Reports",
             font=FONT_HEADING,
             bg=COLOR_CARD_BG,
             fg=COLOR_TEXT_PRIMARY,
             anchor="w",
-        )
-        self.detail_title_lbl.pack(side=tk.LEFT, fill=tk.X, expand=True)
-
-        self.detail_badge = SeverityBadge(detail_header, severity="INFO")
-        self.detail_badge.pack(side=tk.RIGHT)
-
-        # Notebook inside detail pane for organized inspection
-        self.detail_notebook = ttk.Notebook(self.detail_frame)
-        self.detail_notebook.pack(fill=tk.BOTH, expand=True)
-
-        # Sub-tab: Description & Impact
-        self.tab_desc = ttk.Frame(self.detail_notebook)
-        self.detail_notebook.add(self.tab_desc, text="Description & Impact")
-
-        self.desc_text = tk.Text(
-            self.tab_desc,
-            font=FONT_BODY,
-            bg=COLOR_CARD_BG,
-            fg=COLOR_TEXT_PRIMARY,
-            wrap=tk.WORD,
-            bd=0,
-            padx=8,
-            pady=8,
-        )
-        self.desc_text.pack(fill=tk.BOTH, expand=True)
-
-        # Sub-tab: Redacted Evidence
-        self.tab_evidence = ttk.Frame(self.detail_notebook)
-        self.detail_notebook.add(self.tab_evidence, text="Redacted Evidence")
-
-        ev_toolbar = tk.Frame(self.tab_evidence, bg=COLOR_CARD_BG)
-        ev_toolbar.pack(fill=tk.X, padx=8, pady=(4, 2))
+        ).pack(fill=tk.X, pady=(0, 4))
 
         tk.Label(
-            ev_toolbar,
-            text="Static Evidence (Sensitive tokens strictly redacted):",
-            font=FONT_SMALL,
-            bg=COLOR_CARD_BG,
-            fg=COLOR_TEXT_MUTED,
-        ).pack(side=tk.LEFT)
-
-        btn_copy_ev = ttk.Button(
-            ev_toolbar,
-            text="Copy Evidence",
-            style="Secondary.TButton",
-            command=self._copy_evidence_to_clipboard,
-        )
-        btn_copy_ev.pack(side=tk.RIGHT)
-
-        self.evidence_text = tk.Text(
-            self.tab_evidence,
-            font=FONT_CODE,
-            bg="#f8fafc",
-            fg=COLOR_TEXT_PRIMARY,
-            wrap=tk.WORD,
-            padx=10,
-            pady=8,
-            bd=1,
-            relief="solid",
-        )
-        self.evidence_text.pack(fill=tk.BOTH, expand=True, padx=8, pady=(0, 8))
-
-        # Sub-tab: Remediation & Standards
-        self.tab_remediation = ttk.Frame(self.detail_notebook)
-        self.detail_notebook.add(self.tab_remediation, text="Remediation Guidance")
-
-        self.remediation_text = tk.Text(
-            self.tab_remediation,
+            export_box,
+            text="Save formatted audit documentation for technical review, academic publication, or client reporting:",
             font=FONT_BODY,
             bg=COLOR_CARD_BG,
-            fg=COLOR_TEXT_PRIMARY,
-            wrap=tk.WORD,
-            bd=0,
-            padx=8,
-            pady=8,
+            fg=COLOR_TEXT_MUTED,
+            anchor="w",
+        ).pack(fill=tk.X, pady=(0, 10))
+
+        dash_export_row = tk.Frame(export_box, bg=COLOR_CARD_BG)
+        dash_export_row.pack(fill=tk.X)
+
+        ttk.Button(
+            dash_export_row,
+            text="📄 Export PDF Report",
+            style="Primary.TButton",
+            command=lambda: self._export_report("pdf"),
+        ).pack(side=tk.LEFT, padx=(0, 10))
+
+        ttk.Button(
+            dash_export_row,
+            text="🌐 Export HTML Report",
+            style="Secondary.TButton",
+            command=lambda: self._export_report("html"),
+        ).pack(side=tk.LEFT, padx=(0, 10))
+
+        ttk.Button(
+            dash_export_row,
+            text="📝 Export TXT / Markdown",
+            style="Secondary.TButton",
+            command=lambda: self._export_report("text"),
+        ).pack(side=tk.LEFT)
+
+        # Methodology Disclaimer
+        disclaimer = DisclaimerBanner(container)
+        disclaimer.pack(fill=tk.X)
+
+    # -------------------------------------------------------------------------
+    # TAB: VULNERABILITIES & FINDINGS (EXPANDABLE CARDS + FILTERS)
+    # -------------------------------------------------------------------------
+    def _build_vulnerabilities_tab(self) -> None:
+        """Construct the findings tab with FilterBar and ExpandableFindingCards."""
+        container = tk.Frame(self.tab_vulnerabilities, bg=COLOR_BG)
+        container.pack(fill=tk.BOTH, expand=True, padx=12, pady=12)
+
+        # Reusable FilterBar with Severity filter, Category filter, Search, and Expand/Collapse All
+        self.filter_bar = FilterBar(
+            container,
+            on_filter_changed=self._apply_finding_filters,
+            on_expand_all=self._expand_all_cards,
+            on_collapse_all=self._collapse_all_cards,
         )
-        self.remediation_text.pack(fill=tk.BOTH, expand=True)
+        self.filter_bar.pack(fill=tk.X, pady=(0, 10))
+
+        # Backward compatibility bindings
+        self.sev_filter_var = self.filter_bar.sev_var
+        self.cat_filter_var = self.filter_bar.cat_var
+        self.vuln_search_var = self.filter_bar.search_var
+        self.vuln_count_lbl = self.filter_bar.count_label
+
+        # Scrollable Cards Container
+        self.cards_scroll = ScrollableFrame(container, bg=COLOR_BG)
+        self.cards_scroll.pack(fill=tk.BOTH, expand=True)
+        self.cards_parent = self.cards_scroll.scrollable_content
+
+        # Empty state for zero filter matches
+        self.filter_empty_state = EmptyState(
+            self.cards_parent,
+            title="No Matching Findings",
+            message="No security findings match the selected severity, category, and search criteria.",
+            icon="🔍",
+        )
+
+        # Hidden Treeview for programmatic compatibility with unit tests
+        self._build_compatibility_treeview()
+
+    def _build_compatibility_treeview(self) -> None:
+        """Create compatibility Treeview so existing tests can verify findings."""
+        self.vuln_tree = ttk.Treeview(
+            self,
+            columns=("severity", "id", "title", "confidence", "category"),
+            show="headings",
+        )
+        # Dummy detail widgets for compatibility
+        self.detail_title_lbl = tk.Label(self)
+        self.evidence_text = tk.Text(self)
 
     def _apply_finding_filters(self) -> None:
-        """Filter vulnerabilities treeview by selected severity and search query."""
-        sev_query = self.sev_filter_var.get().upper()
+        """Filter vulnerabilities by severity, category, and search query, then render cards."""
+        sev_query = self.sev_filter_var.get().strip().upper()
+        cat_query = self.cat_filter_var.get().strip()
         search_query = self.vuln_search_var.get().lower().strip()
 
-        # Clear tree
+        # Clear existing card widgets
+        for card in self._finding_card_widgets:
+            card.destroy()
+        self._finding_card_widgets.clear()
+
+        # Clear compatibility treeview
         for item in self.vuln_tree.get_children():
             self.vuln_tree.delete(item)
 
         self._filtered_findings = []
+
         for finding in self._all_findings:
-            f_sev = str(finding.severity.value if hasattr(finding.severity, "value") else finding.severity).upper()
+            f_sev = str(
+                finding.severity.value if hasattr(finding.severity, "value") else finding.severity
+            ).upper()
+            f_cat_norm = _normalize_category(finding.category)
+
+            # 1. Severity Filter check
             if sev_query != "ALL" and f_sev != sev_query:
                 continue
 
+            # 2. Category Filter check
+            if cat_query not in ("All", "All Categories") and f_cat_norm != cat_query:
+                continue
+
+            # 3. Search query check
             if search_query:
-                haystack = f"{finding.title} {finding.rule_id} {finding.description} {finding.category}".lower()
+                haystack = (
+                    f"{finding.title} {finding.rule_id} {finding.description} "
+                    f"{finding.evidence} {finding.location} {finding.impact} "
+                    f"{finding.remediation} {f_cat_norm}"
+                ).lower()
                 if search_query not in haystack:
                     continue
 
             self._filtered_findings.append(finding)
 
-            # Insert row
-            item_id = self.vuln_tree.insert(
+        # Update FilterBar count indicator
+        self.filter_bar.set_count(len(self._filtered_findings), len(self._all_findings))
+
+        # Show empty state or render cards
+        if not self._filtered_findings:
+            self.filter_empty_state.pack(fill=tk.BOTH, expand=True, pady=40)
+            return
+
+        self.filter_empty_state.pack_forget()
+
+        # Instantiate ExpandableFindingCard for each matching finding
+        for finding in self._filtered_findings:
+            card = ExpandableFindingCard(
+                self.cards_parent,
+                finding=finding,
+                on_copy_evidence=self._on_copy_evidence,
+            )
+            card.pack(fill=tk.X, pady=(0, 8))
+            self._finding_card_widgets.append(card)
+
+            # Also update compatibility treeview
+            f_sev = str(
+                finding.severity.value if hasattr(finding.severity, "value") else finding.severity
+            ).upper()
+            self.vuln_tree.insert(
                 "",
                 tk.END,
                 values=(
@@ -505,116 +531,200 @@ class ResultsView(ttk.Frame):
                 ),
             )
 
-        self.vuln_count_lbl.config(text=f"{len(self._filtered_findings)} findings shown")
+    def _expand_all_cards(self) -> None:
+        """Expand all finding card widgets."""
+        for card in self._finding_card_widgets:
+            card.expand()
 
-        # Select first item if available
-        children = self.vuln_tree.get_children()
-        if children:
-            self.vuln_tree.selection_set(children[0])
-            self.vuln_tree.focus(children[0])
-            self._on_vuln_selected(None)
+    def _collapse_all_cards(self) -> None:
+        """Collapse all finding card widgets."""
+        for card in self._finding_card_widgets:
+            card.collapse()
+
+    def _on_copy_evidence(self, sanitized_text: str) -> None:
+        """Handle copy evidence action from any finding card."""
+        self.clipboard_clear()
+        self.clipboard_append(sanitized_text)
+        messagebox.showinfo("Copied", "Sanitized evidence copied to clipboard.")
 
     def _on_vuln_selected(self, _event: Any) -> None:
-        """Handle selection of finding in Master Treeview."""
+        """Backward compatibility handler for test selection."""
         selected = self.vuln_tree.selection()
         if not selected:
             return
-
         idx = self.vuln_tree.index(selected[0])
-        if idx >= len(self._filtered_findings):
-            return
-
-        finding = self._filtered_findings[idx]
-        f_sev = str(finding.severity.value if hasattr(finding.severity, "value") else finding.severity).upper()
-
-        self.detail_title_lbl.config(text=f"[{finding.rule_id}] {finding.title}")
-        self.detail_badge.set_severity(f_sev)
-
-        # Update description text
-        self.desc_text.config(state=tk.NORMAL)
-        self.desc_text.delete("1.0", tk.END)
-        self.desc_text.insert(
-            tk.END,
-            f"Vulnerability Description:\n{finding.description}\n\n"
-            f"Potential Impact:\n{finding.impact or 'Potential data exposure or privacy violation.'}\n\n"
-            f"Location / Source Reference:\n{finding.location or 'Global application resources'}",
-        )
-        self.desc_text.config(state=tk.DISABLED)
-
-        # Update evidence text
-        self.evidence_text.config(state=tk.NORMAL)
-        self.evidence_text.delete("1.0", tk.END)
-        evidence_content = finding.evidence or "No raw snippet captured."
-        self.evidence_text.insert(tk.END, evidence_content)
-        self.evidence_text.config(state=tk.DISABLED)
-
-        # Update remediation text
-        self.remediation_text.config(state=tk.NORMAL)
-        self.remediation_text.delete("1.0", tk.END)
-        rem = finding.remediation or "Review and sanitize the detected configuration according to secure mobile coding guidelines."
-        refs = f"• {finding.owasp_reference}" if finding.owasp_reference else "• OWASP Mobile Application Security Verification Standard (MASVS)"
-        self.remediation_text.insert(
-            tk.END,
-            f"Remediation Guidance:\n{rem}\n\n"
-            f"Security Standards & References:\n{refs}",
-        )
-        self.remediation_text.config(state=tk.DISABLED)
-
-    def _copy_evidence_to_clipboard(self) -> None:
-        """Copy redacted evidence text to system clipboard."""
-        text = self.evidence_text.get("1.0", tk.END).strip()
-        if text:
-            self.clipboard_clear()
-            self.clipboard_append(text)
-            messagebox.showinfo("Copied", "Redacted evidence copied to clipboard.")
+        if idx < len(self._filtered_findings):
+            f = self._filtered_findings[idx]
+            self.detail_title_lbl.config(text=f"[{f.rule_id}] {f.title}")
+            self.evidence_text.config(state=tk.NORMAL)
+            self.evidence_text.delete("1.0", tk.END)
+            self.evidence_text.insert(tk.END, redact_text_secrets(f.evidence or ""))
+            self.evidence_text.config(state=tk.DISABLED)
 
     # -------------------------------------------------------------------------
-    # TAB: PERMISSIONS
+    # TAB: PERMISSION VIEW
     # -------------------------------------------------------------------------
     def _build_permissions_tab(self) -> None:
-        """Construct the Permissions audit tab."""
+        """Construct the Permission View showing Permission, Protection level, Risk classification, Description, and Reason for concern."""
         container = tk.Frame(self.tab_permissions, bg=COLOR_BG)
         container.pack(fill=tk.BOTH, expand=True, padx=12, pady=12)
 
-        # Summary Bar
-        top_bar = tk.Frame(container, bg=COLOR_BG)
+        # Top Toolbar: Summary Bar & Search Filter
+        top_bar = tk.Frame(container, bg=COLOR_CARD_BG, highlightbackground=COLOR_BORDER_LIGHT, highlightthickness=1, padx=12, pady=8)
         top_bar.pack(fill=tk.X, pady=(0, 8))
 
         self.perm_count_lbl = tk.Label(
             top_bar,
             text="Total Permissions: 0  |  Dangerous: 0",
             font=FONT_HEADING,
-            bg=COLOR_BG,
+            bg=COLOR_CARD_BG,
             fg=COLOR_TEXT_PRIMARY,
         )
         self.perm_count_lbl.pack(side=tk.LEFT)
 
-        # Treeview
-        tree_frame = tk.Frame(container, bg=COLOR_CARD_BG)
-        tree_frame.pack(fill=tk.BOTH, expand=True)
+        # Perm Search Filter
+        tk.Label(
+            top_bar,
+            text="Filter Permissions:",
+            font=FONT_BODY_BOLD,
+            bg=COLOR_CARD_BG,
+            fg=COLOR_TEXT_PRIMARY,
+        ).pack(side=tk.RIGHT, padx=(10, 6))
 
-        perm_cols = ("permission", "risk_level", "protection_level", "reason")
+        self.perm_filter_var = tk.StringVar()
+        perm_search_entry = ttk.Entry(top_bar, textvariable=self.perm_filter_var, width=24)
+        perm_search_entry.pack(side=tk.RIGHT)
+        perm_search_entry.bind("<KeyRelease>", lambda e: self._filter_permissions_tree())
+
+        # PanedWindow splitting Table and Detail inspection
+        paned = ttk.PanedWindow(container, orient=tk.VERTICAL)
+        paned.pack(fill=tk.BOTH, expand=True)
+
+        # 5-Column Permission Treeview
+        tree_frame = tk.Frame(paned, bg=COLOR_CARD_BG)
+        paned.add(tree_frame, weight=3)
+
+        perm_cols = (
+            "permission",
+            "protection_level",
+            "risk_level",
+            "description",
+            "reason",
+        )
         self.perm_tree = ttk.Treeview(
             tree_frame,
             columns=perm_cols,
             show="headings",
             selectmode="browse",
         )
-        self.perm_tree.heading("permission", text="Permission Name")
-        self.perm_tree.heading("risk_level", text="Risk Level")
+        self.perm_tree.heading("permission", text="Permission")
         self.perm_tree.heading("protection_level", text="Protection Level")
-        self.perm_tree.heading("reason", text="Description / Risk Assessment")
+        self.perm_tree.heading("risk_level", text="Risk Classification")
+        self.perm_tree.heading("description", text="Description")
+        self.perm_tree.heading("reason", text="Reason for Concern")
 
-        self.perm_tree.column("permission", width=280, anchor="w")
-        self.perm_tree.column("risk_level", width=100, anchor="center")
-        self.perm_tree.column("protection_level", width=120, anchor="center")
-        self.perm_tree.column("reason", width=380, anchor="w")
+        self.perm_tree.column("permission", width=250, anchor="w")
+        self.perm_tree.column("protection_level", width=110, anchor="center")
+        self.perm_tree.column("risk_level", width=120, anchor="center")
+        self.perm_tree.column("description", width=280, anchor="w")
+        self.perm_tree.column("reason", width=340, anchor="w")
 
         p_scroll = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL, command=self.perm_tree.yview)
         self.perm_tree.configure(yscrollcommand=p_scroll.set)
 
         self.perm_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         p_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+
+        self.perm_tree.bind("<<TreeviewSelect>>", self._on_perm_selected)
+
+        # Bottom Inspector for selected permission
+        self.perm_detail_card = tk.Frame(
+            paned,
+            bg=COLOR_CARD_BG,
+            highlightbackground=COLOR_BORDER_LIGHT,
+            highlightthickness=1,
+            padx=16,
+            pady=12,
+        )
+        paned.add(self.perm_detail_card, weight=2)
+
+        self.perm_detail_title = tk.Label(
+            self.perm_detail_card,
+            text="Select a permission from the table above to inspect details and data leak exposure.",
+            font=FONT_HEADING,
+            bg=COLOR_CARD_BG,
+            fg=COLOR_TEXT_PRIMARY,
+            anchor="w",
+        )
+        self.perm_detail_title.pack(fill=tk.X, pady=(0, 4))
+
+        self.perm_detail_text = tk.Text(
+            self.perm_detail_card,
+            font=FONT_BODY,
+            bg=COLOR_CARD_BG,
+            fg=COLOR_TEXT_PRIMARY,
+            wrap=tk.WORD,
+            bd=0,
+            height=4,
+        )
+        self.perm_detail_text.pack(fill=tk.BOTH, expand=True)
+        self.perm_detail_text.config(state=tk.DISABLED)
+
+    def _filter_permissions_tree(self) -> None:
+        """Filter permission treeview based on search query."""
+        if not self.current_result:
+            return
+
+        query = self.perm_filter_var.get().strip().lower()
+        all_perms = getattr(
+            self.current_result, "permissions", getattr(self.current_result, "permission_findings", [])
+        )
+
+        for item in self.perm_tree.get_children():
+            self.perm_tree.delete(item)
+
+        for pf in all_perms:
+            haystack = f"{pf.permission} {pf.protection_level} {pf.risk_level} {pf.description} {pf.reason}".lower()
+            if query and query not in haystack:
+                continue
+
+            r_class = str(pf.risk_level.value if hasattr(pf.risk_level, "value") else pf.risk_level).upper()
+            self.perm_tree.insert(
+                "",
+                tk.END,
+                values=(
+                    pf.permission,
+                    pf.protection_level or "normal",
+                    r_class,
+                    pf.description or "Standard Android permission",
+                    pf.reason,
+                ),
+            )
+
+    def _on_perm_selected(self, _event: Any) -> None:
+        """Display detailed explanation for selected permission."""
+        selected = self.perm_tree.selection()
+        if not selected:
+            return
+
+        values = self.perm_tree.item(selected[0], "values")
+        if not values:
+            return
+
+        perm_name, prot_lvl, risk_cls, desc, reason = values
+
+        self.perm_detail_title.config(text=f"Permission: {perm_name} [{risk_cls}]")
+
+        self.perm_detail_text.config(state=tk.NORMAL)
+        self.perm_detail_text.delete("1.0", tk.END)
+        self.perm_detail_text.insert(
+            tk.END,
+            f"Protection Level: {prot_lvl}\n"
+            f"Risk Classification: {risk_cls}\n\n"
+            f"Description:\n{desc}\n\n"
+            f"Reason for Concern:\n{reason}",
+        )
+        self.perm_detail_text.config(state=tk.DISABLED)
 
     # -------------------------------------------------------------------------
     # TAB: APPLICATION DETAILS
@@ -662,17 +772,17 @@ class ResultsView(ttk.Frame):
     # PUBLIC API: DISPLAY SCAN RESULTS
     # -------------------------------------------------------------------------
     def display_results(self, result: AnalysisResult) -> None:
-        """Populate all summary badges, score cards, and tabs with scan results."""
+        """Populate all summary badges, score cards, expandable cards, and tabs with scan results."""
         self.current_result = result
 
-        # Extract Risk Score safely
+        # 1. Extract Risk Score safely
         raw_score = getattr(result, "overall_risk_score", None)
         if raw_score is None and hasattr(result, "risk_score"):
             raw_score = getattr(result.risk_score, "score", getattr(result.risk_score, "final_score", 0.0))
         score_val = int(round(raw_score or 0.0))
         self.score_val_lbl.config(text=str(score_val))
 
-        # Extract Rating badge safely
+        # 2. Extract Rating badge safely
         raw_rating = getattr(result, "risk_rating", None)
         if raw_rating is None and hasattr(result, "risk_score"):
             raw_rating = getattr(result.risk_score, "rating", "MINIMAL")
@@ -680,26 +790,46 @@ class ResultsView(ttk.Frame):
         self.rating_lbl.config(text=rating_str)
 
         # Style rating badge
-        badge_color = "#dc2626" if score_val >= 80 else ("#ea580c" if score_val >= 60 else ("#d97706" if score_val >= 40 else "#16a34a"))
+        badge_color = (
+            "#dc2626"
+            if score_val >= 80
+            else ("#ea580c" if score_val >= 60 else ("#d97706" if score_val >= 40 else "#16a34a"))
+        )
         self.rating_badge_frame.config(bg=badge_color)
         self.rating_lbl.config(bg=badge_color)
 
-        # Retrieve findings and permissions collections
+        # 3. Retrieve findings and permissions collections
         all_findings = getattr(result, "findings", getattr(result, "security_findings", []))
         all_perms = getattr(result, "permissions", getattr(result, "permission_findings", []))
 
-        # Count findings by severity
-        crit_count = sum(1 for f in all_findings if str(f.severity.value if hasattr(f.severity, "value") else f.severity).upper() == "CRITICAL")
-        high_count = sum(1 for f in all_findings if str(f.severity.value if hasattr(f.severity, "value") else f.severity).upper() == "HIGH")
-        med_count = sum(1 for f in all_findings if str(f.severity.value if hasattr(f.severity, "value") else f.severity).upper() == "MEDIUM")
-        low_count = sum(1 for f in all_findings if str(f.severity.value if hasattr(f.severity, "value") else f.severity).upper() == "LOW")
+        # 4. Count findings by severity
+        crit_count = sum(
+            1
+            for f in all_findings
+            if str(f.severity.value if hasattr(f.severity, "value") else f.severity).upper() == "CRITICAL"
+        )
+        high_count = sum(
+            1
+            for f in all_findings
+            if str(f.severity.value if hasattr(f.severity, "value") else f.severity).upper() == "HIGH"
+        )
+        med_count = sum(
+            1
+            for f in all_findings
+            if str(f.severity.value if hasattr(f.severity, "value") else f.severity).upper() == "MEDIUM"
+        )
+        low_count = sum(
+            1
+            for f in all_findings
+            if str(f.severity.value if hasattr(f.severity, "value") else f.severity).upper() == "LOW"
+        )
 
         self.card_crit.set_value(crit_count, f"{crit_count} Critical risks")
         self.card_high.set_value(high_count, f"{high_count} High risks")
         self.card_med.set_value(med_count, f"{med_count} Medium risks")
         self.card_low.set_value(low_count, f"{low_count} Low risks")
 
-        # Executive Summary
+        # 5. Executive Summary
         total_vulns = len(all_findings)
         summary_text = (
             f"Static security evaluation of package '{result.application.package_name}' resulted in an "
@@ -709,7 +839,20 @@ class ResultsView(ttk.Frame):
         )
         self.exec_summary_text.config(text=summary_text)
 
-        # Top Highlights
+        # 6. Category Breakdown Dashboard counts
+        cat_counts: dict[str, int] = {k: 0 for k in self.cat_count_labels}
+        for f in all_findings:
+            norm_c = _normalize_category(f.category)
+            if norm_c in cat_counts:
+                cat_counts[norm_c] += 1
+            else:
+                cat_counts["Other"] += 1
+
+        for cat_name, cnt_lbl in self.cat_count_labels.items():
+            cnt = cat_counts.get(cat_name, 0)
+            cnt_lbl.config(text=f"{cnt} findings")
+
+        # 7. Top Highlights
         self.highlights_box.config(state=tk.NORMAL)
         self.highlights_box.delete("1.0", tk.END)
         top_findings = sorted(
@@ -728,7 +871,7 @@ class ResultsView(ttk.Frame):
             self.highlights_box.insert(tk.END, "No security vulnerabilities were identified in static analysis.")
         self.highlights_box.config(state=tk.DISABLED)
 
-        # Vulnerabilities List (Ordered Critical -> High -> Medium -> Low -> Info)
+        # 8. Sort findings (Critical -> High -> Medium -> Low -> Info) and render expandable cards
         order_map = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3, "INFO": 4}
         self._all_findings = sorted(
             all_findings,
@@ -738,29 +881,16 @@ class ResultsView(ttk.Frame):
         )
         self._apply_finding_filters()
 
-        # Populate Permissions Tab
-        for item in self.perm_tree.get_children():
-            self.perm_tree.delete(item)
-
-        dang_count = 0
-        for pf in all_perms:
-            if pf.risk_level.lower() == "dangerous":
-                dang_count += 1
-            self.perm_tree.insert(
-                "",
-                tk.END,
-                values=(
-                    pf.permission,
-                    pf.risk_level.upper(),
-                    pf.protection_level or "normal",
-                    pf.reason,
-                ),
-            )
+        # 9. Populate Permissions Tab
+        self._filter_permissions_tree()
+        dang_count = sum(
+            1 for pf in all_perms if str(getattr(pf, "risk_level", "")).lower() in ("dangerous", "high")
+        )
         self.perm_count_lbl.config(
             text=f"Total Permissions: {len(all_perms)}  |  Dangerous: {dang_count}"
         )
 
-        # Populate Application Details Tab
+        # 10. Populate Application Details Tab
         for item in self.details_tree.get_children():
             self.details_tree.delete(item)
 
@@ -793,11 +923,11 @@ class ResultsView(ttk.Frame):
         for prop, val in metrics_items:
             self.details_tree.insert("", tk.END, values=(prop, val))
 
-        # Default to overview or vulnerabilities tab
+        # Default to Summary Dashboard tab
         self.notebook.select(self.tab_overview)
 
     # -------------------------------------------------------------------------
-    # REPORT EXPORTING
+    # REPORT EXPORTING (PDF, HTML, TXT)
     # -------------------------------------------------------------------------
     def _export_report(self, fmt: str) -> None:
         """Export current results to PDF, HTML, or Plain Text."""
@@ -809,16 +939,17 @@ class ResultsView(ttk.Frame):
         default_name = f"DataLeakReport_{pkg}_{fmt.lower()}"
 
         file_types = {
-            "pdf": [("PDF Document", "*.pdf")],
-            "html": [("HTML Web Page", "*.html")],
-            "text": [("Markdown / Text Document", "*.txt;*.md")],
+            "pdf": [("PDF Document (*.pdf)", "*.pdf")],
+            "html": [("HTML Web Page (*.html)", "*.html")],
+            "text": [("Text / Markdown Document (*.txt;*.md)", "*.txt;*.md")],
         }
 
+        ext = ".pdf" if fmt == "pdf" else (".html" if fmt == "html" else ".txt")
         save_path = filedialog.asksaveasfilename(
             title=f"Export Static Audit Report as {fmt.upper()}",
             initialfile=default_name,
             filetypes=file_types.get(fmt, [("All Files", "*.*")]),
-            defaultextension=f".{fmt}",
+            defaultextension=ext,
         )
 
         if not save_path:

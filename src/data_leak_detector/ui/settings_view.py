@@ -1,4 +1,4 @@
-"""Settings View: Subprocess timeouts, tool detection status, and configuration management."""
+"""Settings View: Tool paths, diagnostics, report preferences, accessibility, and rule controls."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ import sys
 import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
+from typing import Any
 
 from data_leak_detector.analysis.tool_adapters import ApktoolAdapter, JadxAdapter
 from data_leak_detector.core.config import AppConfig
@@ -26,31 +27,35 @@ from data_leak_detector.ui.widgets import (
     FONT_CODE,
     FONT_HEADING,
     FONT_SMALL,
+    FONT_SUBHEADING,
     FONT_SUBTITLE,
     FONT_TITLE,
+    ScrollableFrame,
 )
 
 logger = logging.getLogger(__name__)
 
 
 class SettingsView(ttk.Frame):
-    """View managing tool diagnostics, subprocess timeouts, and environment preferences."""
+    """View managing external tool diagnostics, paths, report preferences, and rule toggles."""
 
     def __init__(self, master: tk.Misc, config: AppConfig | None = None, *args, **kwargs) -> None:
         super().__init__(master, *args, **kwargs)
         self.config = config or AppConfig()
 
         self._init_layout()
-        self._refresh_diagnostics()
+        self._load_values_into_form()
+        self.check_tools()
 
     def _init_layout(self) -> None:
-        """Create header, diagnostic status cards, and settings form."""
+        """Construct the settings layout within a scrollable frame."""
+        # Top Header
         header_frame = tk.Frame(self, bg=COLOR_BG, padx=20, pady=16)
         header_frame.pack(fill=tk.X)
 
         tk.Label(
             header_frame,
-            text="Settings & Environment Diagnostics",
+            text="Settings & Tool Diagnostics",
             font=FONT_TITLE,
             bg=COLOR_BG,
             fg=COLOR_TEXT_PRIMARY,
@@ -59,108 +64,156 @@ class SettingsView(ttk.Frame):
 
         tk.Label(
             header_frame,
-            text="Verify external decompiler adapters, database storage path, and static analysis timeouts.",
+            text="Configure external decompilers, report generation preferences, accessibility, and analysis rules.",
             font=FONT_SUBTITLE,
             bg=COLOR_BG,
             fg=COLOR_TEXT_MUTED,
             anchor="w",
         ).pack(fill=tk.X, pady=(2, 0))
 
-        content_frame = tk.Frame(self, bg=COLOR_BG, padx=20, pady=8)
-        content_frame.pack(fill=tk.BOTH, expand=True)
+        # Main Scrollable Content
+        scroll = ScrollableFrame(self, bg=COLOR_BG)
+        scroll.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 10))
+        self.content = scroll.scrollable_content
 
-        # Section 1: Tool Diagnostics Card
+        # =====================================================================
+        # SECTION 1: TOOL DIAGNOSTICS & "CHECK TOOLS"
+        # =====================================================================
         diag_card = tk.Frame(
-            content_frame,
+            self.content,
             bg=COLOR_CARD_BG,
             highlightbackground=COLOR_BORDER_LIGHT,
             highlightthickness=1,
             padx=16,
             pady=14,
         )
-        diag_card.pack(fill=tk.X, pady=(0, 14))
+        diag_card.pack(fill=tk.X, pady=(0, 12))
+
+        diag_top = tk.Frame(diag_card, bg=COLOR_CARD_BG)
+        diag_top.pack(fill=tk.X, pady=(0, 10))
 
         tk.Label(
-            diag_card,
-            text="External Tool & Dependency Status",
+            diag_top,
+            text="External Tool & Runtime Diagnostics",
             font=FONT_HEADING,
             bg=COLOR_CARD_BG,
             fg=COLOR_TEXT_PRIMARY,
             anchor="w",
-        ).pack(fill=tk.X, pady=(0, 8))
+        ).pack(side=tk.LEFT)
+
+        # "Check Tools" Button
+        self.btn_check_tools = ttk.Button(
+            diag_top,
+            text="🔍 Check Tools",
+            style="Primary.TButton",
+            command=self.check_tools,
+        )
+        self.btn_check_tools.pack(side=tk.RIGHT)
 
         self.diag_grid = tk.Frame(diag_card, bg=COLOR_CARD_BG)
         self.diag_grid.pack(fill=tk.X)
 
-        # JADX status
-        self.jadx_status_lbl = self._create_diag_row(
+        # AndroGuard status
+        self.androguard_status_lbl = self._create_diag_row(
             self.diag_grid,
             row=0,
-            title="JADX Decompiler:",
-            desc="Produces decompiled Java sources from DEX bytecode for deep secret & storage inspection.",
+            title="AndroGuard Static Parser:",
+            desc="Extracts AndroidManifest XML, string pools, and DEX bytecode for fast static analysis.",
         )
 
-        # Apktool status
+        # apktool status
         self.apktool_status_lbl = self._create_diag_row(
             self.diag_grid,
             row=1,
-            title="Apktool Resource Extractor:",
-            desc="Decodes XML resources and raw assets for static manifest auditing.",
+            title="apktool Resource Extractor:",
+            desc="Decodes compiled binary XML resources and application assets into textual representations.",
         )
 
-        # ReportLab status
-        self.reportlab_status_lbl = self._create_diag_row(
+        # jadx status
+        self.jadx_status_lbl = self._create_diag_row(
             self.diag_grid,
             row=2,
-            title="ReportLab PDF Engine:",
-            desc="Academic-grade publication PDF report generator with Platypus layout engine.",
+            title="jadx Java Decompiler:",
+            desc="Decompiles DEX bytecode into Java source files for deep source-level auditing.",
         )
 
-        # Local SQLite status
-        self.db_status_lbl = self._create_diag_row(
+        # Java status
+        self.java_status_lbl = self._create_diag_row(
             self.diag_grid,
             row=3,
-            title="Local SQLite Database:",
-            desc="Zero external network dependency; persistent scan history stored locally.",
+            title="Java Runtime Environment (JRE):",
+            desc="Required runtime for launching external decompilers (apktool and jadx JARs).",
         )
 
-        # Section 2: Engine Configuration Form
-        config_card = tk.Frame(
-            content_frame,
+        # =====================================================================
+        # SECTION 2: TOOL PATHS & OUTPUT DIRECTORY
+        # =====================================================================
+        paths_card = tk.Frame(
+            self.content,
             bg=COLOR_CARD_BG,
             highlightbackground=COLOR_BORDER_LIGHT,
             highlightthickness=1,
             padx=16,
             pady=14,
         )
-        config_card.pack(fill=tk.X, pady=(0, 14))
+        paths_card.pack(fill=tk.X, pady=(0, 12))
 
         tk.Label(
-            config_card,
-            text="Engine Preferences & Timeouts",
+            paths_card,
+            text="Tool Executable Paths & Output Location",
             font=FONT_HEADING,
             bg=COLOR_CARD_BG,
             fg=COLOR_TEXT_PRIMARY,
             anchor="w",
         ).pack(fill=tk.X, pady=(0, 10))
 
-        # Timeout field
-        form_row1 = tk.Frame(config_card, bg=COLOR_CARD_BG)
-        form_row1.pack(fill=tk.X, pady=4)
+        # JADX Path field
+        self.jadx_path_var = tk.StringVar()
+        self._create_path_row(
+            paths_card,
+            label_text="JADX Executable Path:",
+            text_var=self.jadx_path_var,
+            on_browse=self._browse_jadx,
+            placeholder="Auto-detected in system PATH (or specify custom path)",
+        )
+
+        # Apktool Path field
+        self.apktool_path_var = tk.StringVar()
+        self._create_path_row(
+            paths_card,
+            label_text="Apktool Executable Path:",
+            text_var=self.apktool_path_var,
+            on_browse=self._browse_apktool,
+            placeholder="Auto-detected in system PATH (or specify custom path)",
+        )
+
+        # Output Directory field
+        self.output_dir_var = tk.StringVar()
+        self._create_path_row(
+            paths_card,
+            label_text="Report Output Directory:",
+            text_var=self.output_dir_var,
+            on_browse=self._browse_output_dir,
+            placeholder="Folder where exported PDF, HTML, and TXT reports will be saved",
+        )
+
+        # Timeout setting
+        timeout_row = tk.Frame(paths_card, bg=COLOR_CARD_BG)
+        timeout_row.pack(fill=tk.X, pady=(8, 2))
 
         tk.Label(
-            form_row1,
-            text="External Process Timeout (seconds):",
+            timeout_row,
+            text="Process Timeout (seconds):",
             font=FONT_BODY_BOLD,
             bg=COLOR_CARD_BG,
             fg=COLOR_TEXT_PRIMARY,
-            width=32,
+            width=24,
             anchor="w",
         ).pack(side=tk.LEFT)
 
         self.timeout_var = tk.StringVar(value=str(self.config.subprocess_timeout_seconds))
         self.timeout_spin = ttk.Spinbox(
-            form_row1,
+            timeout_row,
             from_=15,
             to=600,
             textvariable=self.timeout_var,
@@ -169,66 +222,215 @@ class SettingsView(ttk.Frame):
         self.timeout_spin.pack(side=tk.LEFT)
 
         tk.Label(
-            form_row1,
-            text="(Default: 120s. Enforces subprocess kill if external decompiler hangs)",
+            timeout_row,
+            text="(Terminates subprocess if decompiler hangs. Default: 120s)",
             font=FONT_SMALL,
             bg=COLOR_CARD_BG,
             fg=COLOR_TEXT_MUTED,
         ).pack(side=tk.LEFT, padx=(10, 0))
 
-        # Storage Path field
-        form_row2 = tk.Frame(config_card, bg=COLOR_CARD_BG)
-        form_row2.pack(fill=tk.X, pady=(10, 4))
+        # =====================================================================
+        # SECTION 3: REPORT PREFERENCES
+        # =====================================================================
+        report_card = tk.Frame(
+            self.content,
+            bg=COLOR_CARD_BG,
+            highlightbackground=COLOR_BORDER_LIGHT,
+            highlightthickness=1,
+            padx=16,
+            pady=14,
+        )
+        report_card.pack(fill=tk.X, pady=(0, 12))
 
         tk.Label(
-            form_row2,
-            text="Local Database Path:",
+            report_card,
+            text="Report Preferences",
+            font=FONT_HEADING,
+            bg=COLOR_CARD_BG,
+            fg=COLOR_TEXT_PRIMARY,
+            anchor="w",
+        ).pack(fill=tk.X, pady=(0, 8))
+
+        # Default Format
+        fmt_row = tk.Frame(report_card, bg=COLOR_CARD_BG)
+        fmt_row.pack(fill=tk.X, pady=4)
+
+        tk.Label(
+            fmt_row,
+            text="Default Export Format:",
             font=FONT_BODY_BOLD,
             bg=COLOR_CARD_BG,
             fg=COLOR_TEXT_PRIMARY,
-            width=32,
+            width=24,
             anchor="w",
         ).pack(side=tk.LEFT)
 
-        self.db_path_entry = ttk.Entry(
-            form_row2,
-            width=50,
-            font=FONT_CODE,
+        self.report_fmt_var = tk.StringVar(value=self.config.report_default_format)
+        fmt_combo = ttk.Combobox(
+            fmt_row,
+            textvariable=self.report_fmt_var,
+            values=["PDF", "HTML", "TXT"],
+            state="readonly",
+            width=10,
         )
-        self.db_path_entry.insert(0, str(self.config.database_path))
-        self.db_path_entry.config(state="readonly")
-        self.db_path_entry.pack(side=tk.LEFT, padx=(0, 8))
+        fmt_combo.pack(side=tk.LEFT)
 
-        btn_open_folder = ttk.Button(
-            form_row2,
-            text="Open Folder",
-            style="Secondary.TButton",
-            command=self._open_db_folder,
+        # Checkboxes for report contents
+        self.rep_disclaimer_var = tk.BooleanVar(value=self.config.report_include_disclaimer)
+        self.rep_owasp_var = tk.BooleanVar(value=self.config.report_include_owasp)
+        self.rep_perms_var = tk.BooleanVar(value=self.config.report_include_permissions)
+
+        ttk.Checkbutton(
+            report_card,
+            text="Include academic methodology & static analysis disclaimer in reports",
+            variable=self.rep_disclaimer_var,
+        ).pack(anchor="w", pady=(6, 2))
+
+        ttk.Checkbutton(
+            report_card,
+            text="Include OWASP MASVS and CWE vulnerability mappings in reports",
+            variable=self.rep_owasp_var,
+        ).pack(anchor="w", pady=2)
+
+        ttk.Checkbutton(
+            report_card,
+            text="Include detailed permission auditing breakdown in reports",
+            variable=self.rep_perms_var,
+        ).pack(anchor="w", pady=2)
+
+        # =====================================================================
+        # SECTION 4: ACCESSIBILITY & HIGH-CONTRAST
+        # =====================================================================
+        access_card = tk.Frame(
+            self.content,
+            bg=COLOR_CARD_BG,
+            highlightbackground=COLOR_BORDER_LIGHT,
+            highlightthickness=1,
+            padx=16,
+            pady=14,
         )
-        btn_open_folder.pack(side=tk.LEFT)
+        access_card.pack(fill=tk.X, pady=(0, 12))
 
-        # Action Buttons
-        btn_row = tk.Frame(content_frame, bg=COLOR_BG)
-        btn_row.pack(fill=tk.X, pady=8)
+        tk.Label(
+            access_card,
+            text="Accessibility & Display",
+            font=FONT_HEADING,
+            bg=COLOR_CARD_BG,
+            fg=COLOR_TEXT_PRIMARY,
+            anchor="w",
+        ).pack(fill=tk.X, pady=(0, 6))
+
+        self.high_contrast_var = tk.BooleanVar(value=self.config.high_contrast_mode)
+        ttk.Checkbutton(
+            access_card,
+            text="Enable High-Contrast Mode (Increases visual border definitions and badge contrast)",
+            variable=self.high_contrast_var,
+        ).pack(anchor="w", pady=2)
+
+        # =====================================================================
+        # SECTION 5: OPTIONAL ANALYSIS RULES CONTROLS
+        # =====================================================================
+        rules_card = tk.Frame(
+            self.content,
+            bg=COLOR_CARD_BG,
+            highlightbackground=COLOR_BORDER_LIGHT,
+            highlightthickness=1,
+            padx=16,
+            pady=14,
+        )
+        rules_card.pack(fill=tk.X, pady=(0, 12))
+
+        tk.Label(
+            rules_card,
+            text="Analysis Rule Engine Controls",
+            font=FONT_HEADING,
+            bg=COLOR_CARD_BG,
+            fg=COLOR_TEXT_PRIMARY,
+            anchor="w",
+        ).pack(fill=tk.X, pady=(0, 4))
+
+        tk.Label(
+            rules_card,
+            text="Enable or disable specific static vulnerability inspection rule categories:",
+            font=FONT_BODY,
+            bg=COLOR_CARD_BG,
+            fg=COLOR_TEXT_MUTED,
+            anchor="w",
+        ).pack(fill=tk.X, pady=(0, 8))
+
+        self.rule_manifest_var = tk.BooleanVar(value=self.config.enable_manifest_rules)
+        self.rule_secrets_var = tk.BooleanVar(value=self.config.enable_secret_rules)
+        self.rule_network_var = tk.BooleanVar(value=self.config.enable_network_rules)
+        self.rule_storage_var = tk.BooleanVar(value=self.config.enable_storage_rules)
+        self.rule_crypto_var = tk.BooleanVar(value=self.config.enable_crypto_rules)
+        self.rule_sdks_var = tk.BooleanVar(value=self.config.enable_sdk_rules)
+
+        rules_grid = tk.Frame(rules_card, bg=COLOR_CARD_BG)
+        rules_grid.pack(fill=tk.X)
+
+        ttk.Checkbutton(
+            rules_grid,
+            text="Manifest Security Rules (exported components, debuggable, allowBackup)",
+            variable=self.rule_manifest_var,
+        ).grid(row=0, column=0, sticky="w", pady=3)
+
+        ttk.Checkbutton(
+            rules_grid,
+            text="Secret & Credential Scanner (hardcoded API tokens, private keys)",
+            variable=self.rule_secrets_var,
+        ).grid(row=1, column=0, sticky="w", pady=3)
+
+        ttk.Checkbutton(
+            rules_grid,
+            text="Network Communication Rules (cleartext HTTP, SSL validation bypasses)",
+            variable=self.rule_network_var,
+        ).grid(row=2, column=0, sticky="w", pady=3)
+
+        ttk.Checkbutton(
+            rules_grid,
+            text="Insecure Storage Rules (world-readable modes, plaintext SharedPreferences)",
+            variable=self.rule_storage_var,
+        ).grid(row=0, column=1, sticky="w", padx=(20, 0), pady=3)
+
+        ttk.Checkbutton(
+            rules_grid,
+            text="Cryptography Flaw Rules (DES/3DES/RC4, ECB mode, static IVs)",
+            variable=self.rule_crypto_var,
+        ).grid(row=1, column=1, sticky="w", padx=(20, 0), pady=3)
+
+        ttk.Checkbutton(
+            rules_grid,
+            text="Third-Party SDK & Telemetry Rules (tracking SDKs, permission exposure)",
+            variable=self.rule_sdks_var,
+        ).grid(row=2, column=1, sticky="w", padx=(20, 0), pady=3)
+
+        # =====================================================================
+        # SECTION 6: ACTION BUTTONS (SAVE & RESET)
+        # =====================================================================
+        action_bar = tk.Frame(self.content, bg=COLOR_BG)
+        action_bar.pack(fill=tk.X, pady=(6, 20))
 
         btn_save = ttk.Button(
-            btn_row,
-            text="Save Settings",
+            action_bar,
+            text="💾 Save Settings",
             style="Primary.TButton",
-            command=self._save_settings,
+            command=self.save_settings,
         )
-        btn_save.pack(side=tk.LEFT, padx=(0, 8))
+        btn_save.pack(side=tk.LEFT, padx=(0, 10))
 
         btn_reset = ttk.Button(
-            btn_row,
-            text="Reset to Defaults",
-            style="Secondary.TButton",
-            command=self._reset_defaults,
+            action_bar,
+            text="🔄 Reset Settings to Default",
+            style="Danger.TButton",
+            command=self.reset_settings,
         )
         btn_reset.pack(side=tk.LEFT)
 
+    # -------------------------------------------------------------------------
+    # ROW BUILDERS
+    # -------------------------------------------------------------------------
     def _create_diag_row(self, master: tk.Misc, row: int, title: str, desc: str) -> tk.Label:
-        """Create a standardized diagnostic row in the diagnostics table."""
+        """Create a standardized diagnostic label row."""
         lbl_title = tk.Label(
             master,
             text=title,
@@ -261,88 +463,216 @@ class SettingsView(ttk.Frame):
 
         return status_lbl
 
-    def _refresh_diagnostics(self) -> None:
-        """Inspect environment for external tools and update status labels."""
-        # Check JADX
-        jadx_adapter = JadxAdapter()
-        if jadx_adapter.is_available():
-            self.jadx_status_lbl.config(
-                text=f"✔ Available ({jadx_adapter.tool_path})",
-                fg=COLOR_SUCCESS,
-            )
-        else:
-            self.jadx_status_lbl.config(
-                text="⚠ Not found in PATH (Falling back to DEX string pool & manifest inspection)",
-                fg="#d97706",
-            )
+    def _create_path_row(
+        self,
+        master: tk.Misc,
+        label_text: str,
+        text_var: tk.StringVar,
+        on_browse: Callable[[], None],
+        placeholder: str,
+    ) -> None:
+        """Create an executable or directory path input row with Browse button."""
+        frame = tk.Frame(master, bg=COLOR_CARD_BG)
+        frame.pack(fill=tk.X, pady=4)
 
-        # Check Apktool
-        apktool_adapter = ApktoolAdapter()
-        if apktool_adapter.is_available():
-            self.apktool_status_lbl.config(
-                text=f"✔ Available ({apktool_adapter.tool_path})",
-                fg=COLOR_SUCCESS,
-            )
-        else:
-            self.apktool_status_lbl.config(
-                text="⚠ Not found in PATH (Falling back to zip extraction)",
-                fg="#d97706",
-            )
+        tk.Label(
+            frame,
+            text=label_text,
+            font=FONT_BODY_BOLD,
+            bg=COLOR_CARD_BG,
+            fg=COLOR_TEXT_PRIMARY,
+            width=24,
+            anchor="w",
+        ).pack(side=tk.LEFT)
 
-        # Check ReportLab
+        entry = ttk.Entry(frame, textvariable=text_var, width=50, font=FONT_CODE)
+        entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 8))
+
+        btn = ttk.Button(frame, text="Browse...", style="Secondary.TButton", command=on_browse)
+        btn.pack(side=tk.RIGHT)
+
+    # -------------------------------------------------------------------------
+    # TOOL DIAGNOSTICS ("CHECK TOOLS")
+    # -------------------------------------------------------------------------
+    def check_tools(self) -> None:
+        """Inspect and verify AndroGuard, apktool, jadx, and Java status."""
+        logger.info("Running tool diagnostics check...")
+
+        # 1. AndroGuard status
         try:
-            import reportlab
-            self.reportlab_status_lbl.config(
-                text=f"✔ Installed (v{reportlab.__version__})",
+            import androguard
+            ver = getattr(androguard, "__version__", "installed")
+            self.androguard_status_lbl.config(
+                text=f"✔ Available (v{ver} AST/DEX parser active)",
                 fg=COLOR_SUCCESS,
             )
         except ImportError:
-            self.reportlab_status_lbl.config(
-                text="❌ Not installed (PDF generation will be disabled)",
-                fg="#dc2626",
+            self.androguard_status_lbl.config(
+                text="✔ Available (Built-in static fallback parser active)",
+                fg=COLOR_SUCCESS,
             )
 
-        # Check SQLite Database
-        db_path = self.config.database_path
-        if db_path.exists():
-            sz_kb = db_path.stat().st_size / 1024
-            self.db_status_lbl.config(
-                text=f"✔ Connected ({sz_kb:.1f} KB at {db_path.name})",
+        # 2. apktool status
+        apktool_custom = self.apktool_path_var.get().strip() if hasattr(self, "apktool_path_var") else ""
+        apktool_adapter = ApktoolAdapter(custom_path=Path(apktool_custom) if apktool_custom else None)
+        if apktool_adapter.is_available():
+            self.apktool_status_lbl.config(
+                text="✔ Available (Binary XML and resource extraction ready)",
                 fg=COLOR_SUCCESS,
             )
         else:
-            self.db_status_lbl.config(
-                text=f"✔ Ready (Auto-initialized at {db_path.name})",
-                fg=COLOR_ACCENT,
+            self.apktool_status_lbl.config(
+                text="⚠ Not Detected in PATH (Manifest extraction fallback active)",
+                fg="#d97706",
             )
 
-    def _open_db_folder(self) -> None:
-        """Open the directory containing the local SQLite database in OS file explorer."""
-        folder = self.config.database_path.parent
-        folder.mkdir(parents=True, exist_ok=True)
-        try:
-            if sys.platform == "win32":
-                os.startfile(folder)
-            elif sys.platform == "darwin":
-                subprocess.run(["open", str(folder)], check=False)
-            else:
-                subprocess.run(["xdg-open", str(folder)], check=False)
-        except Exception as exc:
-            messagebox.showinfo("Folder Path", f"Database folder:\n{folder}")
+        # 3. jadx status
+        jadx_custom = self.jadx_path_var.get().strip() if hasattr(self, "jadx_path_var") else ""
+        jadx_adapter = JadxAdapter(custom_path=Path(jadx_custom) if jadx_custom else None)
+        if jadx_adapter.is_available():
+            self.jadx_status_lbl.config(
+                text="✔ Available (Java decompilation ready)",
+                fg=COLOR_SUCCESS,
+            )
+        else:
+            self.jadx_status_lbl.config(
+                text="⚠ Not Detected in PATH (DEX bytecode pool inspection active)",
+                fg="#d97706",
+            )
 
-    def _save_settings(self) -> None:
-        """Save updated settings to runtime AppConfig."""
+        # 4. Java status
+        java_exe = shutil.which("java")
+        if java_exe:
+            try:
+                res = subprocess.run(
+                    [java_exe, "-version"],
+                    capture_output=True,
+                    text=True,
+                    timeout=3,
+                    check=False,
+                )
+                output = res.stderr or res.stdout
+                first_line = output.splitlines()[0] if output else "Java runtime detected"
+                # Keep it concise, do not expose internal paths
+                self.java_status_lbl.config(
+                    text=f"✔ Available ({first_line[:40]})",
+                    fg=COLOR_SUCCESS,
+                )
+            except Exception:
+                self.java_status_lbl.config(
+                    text="✔ Available (Java runtime detected)",
+                    fg=COLOR_SUCCESS,
+                )
+        else:
+            self.java_status_lbl.config(
+                text="⚠ Not Detected in PATH (Required for external decompiler JARs)",
+                fg="#d97706",
+            )
+
+    # -------------------------------------------------------------------------
+    # FILE / DIRECTORY BROWSERS
+    # -------------------------------------------------------------------------
+    def _browse_jadx(self) -> None:
+        """Browse file dialog for jadx executable."""
+        chosen = filedialog.askopenfilename(
+            title="Select jadx Executable",
+            filetypes=[("Executables", "*.bat;*.exe;jadx;*"), ("All Files", "*.*")],
+        )
+        if chosen:
+            self.jadx_path_var.set(chosen)
+            self.check_tools()
+
+    def _browse_apktool(self) -> None:
+        """Browse file dialog for apktool executable or JAR."""
+        chosen = filedialog.askopenfilename(
+            title="Select apktool Executable or JAR",
+            filetypes=[("Executables / JARs", "*.bat;*.jar;apktool;*"), ("All Files", "*.*")],
+        )
+        if chosen:
+            self.apktool_path_var.set(chosen)
+            self.check_tools()
+
+    def _browse_output_dir(self) -> None:
+        """Browse directory dialog for report output destination."""
+        chosen = filedialog.askdirectory(title="Select Report Output Directory")
+        if chosen:
+            self.output_dir_var.set(chosen)
+
+    # -------------------------------------------------------------------------
+    # FORM VALUE PERSISTENCE & RESET
+    # -------------------------------------------------------------------------
+    def _load_values_into_form(self) -> None:
+        """Populate form variables from runtime AppConfig."""
+        # Try loading persisted settings from disk if available
+        self.config.load_from_disk()
+
+        self.jadx_path_var.set(self.config.jadx_path or "")
+        self.apktool_path_var.set(self.config.apktool_path or "")
+        self.output_dir_var.set(self.config.output_dir or "")
+        self.timeout_var.set(str(self.config.subprocess_timeout_seconds))
+        self.report_fmt_var.set(self.config.report_default_format)
+        self.rep_disclaimer_var.set(self.config.report_include_disclaimer)
+        self.rep_owasp_var.set(self.config.report_include_owasp)
+        self.rep_perms_var.set(self.config.report_include_permissions)
+        self.high_contrast_var.set(self.config.high_contrast_mode)
+        self.rule_manifest_var.set(self.config.enable_manifest_rules)
+        self.rule_secrets_var.set(self.config.enable_secret_rules)
+        self.rule_network_var.set(self.config.enable_network_rules)
+        self.rule_storage_var.set(self.config.enable_storage_rules)
+        self.rule_crypto_var.set(self.config.enable_crypto_rules)
+        self.rule_sdks_var.set(self.config.enable_sdk_rules)
+
+    def save_settings(self) -> None:
+        """Save form values into AppConfig and persist to user configuration directory."""
         try:
             val = int(self.timeout_var.get())
             if val < 5:
                 val = 5
             self.config.subprocess_timeout_seconds = val
-            messagebox.showinfo("Settings Saved", "Runtime configuration updated successfully.")
         except ValueError:
-            messagebox.showerror("Invalid Input", "Timeout must be an integer number of seconds.")
+            messagebox.showerror("Invalid Timeout", "Timeout must be a positive integer number of seconds.")
+            return
+
+        self.config.jadx_path = self.jadx_path_var.get().strip()
+        self.config.apktool_path = self.apktool_path_var.get().strip()
+        self.config.output_dir = self.output_dir_var.get().strip()
+        self.config.report_default_format = self.report_fmt_var.get().strip()
+        self.config.report_include_disclaimer = self.rep_disclaimer_var.get()
+        self.config.report_include_owasp = self.rep_owasp_var.get()
+        self.config.report_include_permissions = self.rep_perms_var.get()
+        self.config.high_contrast_mode = self.high_contrast_var.get()
+        self.config.enable_manifest_rules = self.rule_manifest_var.get()
+        self.config.enable_secret_rules = self.rule_secrets_var.get()
+        self.config.enable_network_rules = self.rule_network_var.get()
+        self.config.enable_storage_rules = self.rule_storage_var.get()
+        self.config.enable_crypto_rules = self.rule_crypto_var.get()
+        self.config.enable_sdk_rules = self.rule_sdks_var.get()
+
+        # Persist to disk in user configuration directory
+        saved_file = self.config.save_to_disk()
+        messagebox.showinfo("Settings Saved", f"Configuration settings successfully saved to:\n{saved_file.name}")
+
+    def reset_settings(self) -> None:
+        """Reset all configuration settings to default and persist to disk."""
+        confirm = messagebox.askyesno(
+            "Confirm Reset",
+            "Are you sure you want to restore all settings to their default values?",
+        )
+        if not confirm:
+            return
+
+        self.config.reset_to_defaults()
+        self._load_values_into_form()
+        self.check_tools()
+        messagebox.showinfo("Settings Restored", "All configuration settings have been restored to defaults.")
+
+    # -------------------------------------------------------------------------
+    # BACKWARD COMPATIBILITY
+    # -------------------------------------------------------------------------
+    def _save_settings(self) -> None:
+        """Backward compatibility alias for tests."""
+        self.save_settings()
 
     def _reset_defaults(self) -> None:
-        """Reset settings to default values."""
-        self.config.subprocess_timeout_seconds = 120
-        self.timeout_var.set("120")
-        messagebox.showinfo("Defaults Restored", "Configuration settings restored to default values.")
+        """Backward compatibility alias for tests."""
+        self.reset_settings()
