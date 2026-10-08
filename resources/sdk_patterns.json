@@ -1,0 +1,34 @@
+{
+  "ad_and_analytics_sdks": [
+    {
+      "name": "Google AdMob / Firebase Analytics",
+      "package_pattern": "com\\.google\\.android\\.gms\\.(ads|measurement)",
+      "category": "ADVERTISING_ANALYTICS",
+      "risk_note": "Collects advertising ID and app interaction metrics."
+    },
+    {
+      "name": "Facebook Audience Network / SDK",
+      "package_pattern": "com\\.facebook\\.(ads|appevents)",
+      "category": "ADVERTISING_ANALYTICS",
+      "risk_note": "Transmits profile-correlated telemetry and marketing IDs."
+    },
+    {
+      "name": "AppsFlyer",
+      "package_pattern": "com\\.appsflyer",
+      "category": "ATTRIBUTION_TRACKING",
+      "risk_note": "Install attribution and deep-linking device identifier profiling."
+    },
+    {
+      "name": "Adjust",
+      "package_pattern": "com\\.adjust\\.sdk",
+      "category": "ATTRIBUTION_TRACKING",
+      "risk_note": "Attribution and mobile measurement device telemetry."
+    },
+    {
+      "name": "Unity Ads",
+      "package_pattern": "com\\.unity3d\\.services\\.ads",
+      "category": "ADVERTISING",
+      "risk_note": "Collects gaming telemetry and monetization data."
+    }
+  ]
+}

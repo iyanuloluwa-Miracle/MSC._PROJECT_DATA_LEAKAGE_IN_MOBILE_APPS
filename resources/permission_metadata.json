@@ -1,0 +1,396 @@
+{
+  "permission_families": {
+    "location": {
+      "display_name": "Location Services",
+      "user_summary": "Allows accessing GPS or approximate cell/Wi-Fi locations."
+    },
+    "contacts": {
+      "display_name": "Contacts & Address Book",
+      "user_summary": "Allows reading or modifying your personal contacts list."
+    },
+    "camera": {
+      "display_name": "Camera & Imaging",
+      "user_summary": "Allows taking photos and recording video."
+    },
+    "microphone": {
+      "display_name": "Microphone & Audio",
+      "user_summary": "Allows recording ambient audio and voice."
+    },
+    "phone": {
+      "display_name": "Phone & Telephony",
+      "user_summary": "Allows reading phone numbers, cellular state, or making calls."
+    },
+    "sms": {
+      "display_name": "SMS & Text Messages",
+      "user_summary": "Allows reading, receiving, or sending SMS/MMS messages."
+    },
+    "call_logs": {
+      "display_name": "Call History",
+      "user_summary": "Allows reading or writing personal telephone call logs."
+    },
+    "calendar": {
+      "display_name": "Calendar & Schedule",
+      "user_summary": "Allows accessing calendar events and personal schedules."
+    },
+    "bluetooth_nearby": {
+      "display_name": "Nearby Devices & Bluetooth",
+      "user_summary": "Allows scanning for, connecting to, or advertising to nearby Bluetooth and Wi-Fi devices."
+    },
+    "storage": {
+      "display_name": "Storage & Media Files",
+      "user_summary": "Allows reading or writing photos, videos, audio, or shared device files."
+    },
+    "notifications": {
+      "display_name": "Notifications",
+      "user_summary": "Allows posting notifications or intercepting notification content."
+    },
+    "biometrics": {
+      "display_name": "Biometric Authentication",
+      "user_summary": "Allows authenticating using fingerprint or face recognition hardware."
+    }
+  },
+  "permissions": {
+    "android.permission.ACCESS_FINE_LOCATION": {
+      "family": "location",
+      "protection_level": "dangerous",
+      "risk_level": "HIGH",
+      "description": "Allows an app to access precise location from GPS and network sources.",
+      "user_friendly_description": "Can pinpoint your exact geographic location using GPS and Wi-Fi satellites.",
+      "is_sensitive_user_data": true,
+      "leak_implications": "Precise real-time physical tracking and geofencing."
+    },
+    "android.permission.ACCESS_COARSE_LOCATION": {
+      "family": "location",
+      "protection_level": "dangerous",
+      "risk_level": "MEDIUM",
+      "description": "Allows an app to access approximate location derived from network location sources.",
+      "user_friendly_description": "Can determine your general city or neighbourhood location.",
+      "is_sensitive_user_data": true,
+      "leak_implications": "General geographic tracking."
+    },
+    "android.permission.ACCESS_BACKGROUND_LOCATION": {
+      "family": "location",
+      "protection_level": "dangerous",
+      "risk_level": "HIGH",
+      "description": "Allows an app to access location in the background.",
+      "user_friendly_description": "Can track your location constantly, even when you are not actively using the app.",
+      "is_sensitive_user_data": true,
+      "leak_implications": "Continuous unattended geolocation tracking."
+    },
+    "android.permission.READ_CONTACTS": {
+      "family": "contacts",
+      "protection_level": "dangerous",
+      "risk_level": "HIGH",
+      "description": "Allows an application to read the user's contacts data.",
+      "user_friendly_description": "Can read the names, phone numbers, and emails of people in your address book.",
+      "is_sensitive_user_data": true,
+      "leak_implications": "Harvesting personal social graph and address book records."
+    },
+    "android.permission.WRITE_CONTACTS": {
+      "family": "contacts",
+      "protection_level": "dangerous",
+      "risk_level": "MEDIUM",
+      "description": "Allows an application to write the user's contacts data.",
+      "user_friendly_description": "Can create, modify, or delete entries in your personal contacts list.",
+      "is_sensitive_user_data": true,
+      "leak_implications": "Modification or injection of contact entries."
+    },
+    "android.permission.GET_ACCOUNTS": {
+      "family": "contacts",
+      "protection_level": "dangerous",
+      "risk_level": "MEDIUM",
+      "description": "Allows access to the list of accounts in the Accounts Service.",
+      "user_friendly_description": "Can view accounts registered on your device (e.g. Google, email accounts).",
+      "is_sensitive_user_data": true,
+      "leak_implications": "Account username and email address discovery."
+    },
+    "android.permission.CAMERA": {
+      "family": "camera",
+      "protection_level": "dangerous",
+      "risk_level": "HIGH",
+      "description": "Required to be able to access the camera device.",
+      "user_friendly_description": "Can take pictures and record video using your device camera.",
+      "is_sensitive_user_data": true,
+      "leak_implications": "Surreptitious image or video capture."
+    },
+    "android.permission.RECORD_AUDIO": {
+      "family": "microphone",
+      "protection_level": "dangerous",
+      "risk_level": "HIGH",
+      "description": "Allows an application to record audio.",
+      "user_friendly_description": "Can listen to and record sound through your device microphone.",
+      "is_sensitive_user_data": true,
+      "leak_implications": "Audio surveillance and ambient voice eavesdropping."
+    },
+    "android.permission.READ_PHONE_STATE": {
+      "family": "phone",
+      "protection_level": "dangerous",
+      "risk_level": "HIGH",
+      "description": "Allows read only access to phone state, including phone number and cellular network information.",
+      "user_friendly_description": "Can access cellular carrier information and whether a call is in progress.",
+      "is_sensitive_user_data": true,
+      "leak_implications": "Carrier tracking and cellular network telemetry gathering."
+    },
+    "android.permission.READ_PRIVILEGED_PHONE_STATE": {
+      "family": "phone",
+      "protection_level": "signature|privileged",
+      "risk_level": "CRITICAL",
+      "description": "Allows read access to privileged phone state (IMEI, MEID, IMSI).",
+      "user_friendly_description": "Can read permanent hardware identifiers (IMEI, IMSI) that cannot be reset.",
+      "is_sensitive_user_data": true,
+      "leak_implications": "Permanent, unchangeable hardware fingerprinting."
+    },
+    "android.permission.CALL_PHONE": {
+      "family": "phone",
+      "protection_level": "dangerous",
+      "risk_level": "MEDIUM",
+      "description": "Allows an application to initiate a phone call without user confirmation.",
+      "user_friendly_description": "Can place outgoing phone calls without opening the dialer screen.",
+      "is_sensitive_user_data": false,
+      "leak_implications": "Toll fraud or unintended call routing."
+    },
+    "android.permission.READ_PHONE_NUMBERS": {
+      "family": "phone",
+      "protection_level": "dangerous",
+      "risk_level": "HIGH",
+      "description": "Allows read access to the device's phone numbers.",
+      "user_friendly_description": "Can retrieve the telephone number associated with your SIM card.",
+      "is_sensitive_user_data": true,
+      "leak_implications": "Owner telephone number exfiltration."
+    },
+    "android.permission.READ_SMS": {
+      "family": "sms",
+      "protection_level": "dangerous",
+      "risk_level": "CRITICAL",
+      "description": "Allows an application to read SMS messages.",
+      "user_friendly_description": "Can read incoming and stored text messages, including two-factor verification codes (OTP).",
+      "is_sensitive_user_data": true,
+      "leak_implications": "2FA code interception and private messaging exposure."
+    },
+    "android.permission.RECEIVE_SMS": {
+      "family": "sms",
+      "protection_level": "dangerous",
+      "risk_level": "CRITICAL",
+      "description": "Allows an application to receive SMS messages.",
+      "user_friendly_description": "Can intercept incoming SMS messages as they arrive.",
+      "is_sensitive_user_data": true,
+      "leak_implications": "Real-time OTP interception."
+    },
+    "android.permission.SEND_SMS": {
+      "family": "sms",
+      "protection_level": "dangerous",
+      "risk_level": "HIGH",
+      "description": "Allows an application to send SMS messages.",
+      "user_friendly_description": "Can send text messages without opening the messenger app, potentially incurring charges.",
+      "is_sensitive_user_data": false,
+      "leak_implications": "Premium SMS toll fraud."
+    },
+    "android.permission.READ_CALL_LOG": {
+      "family": "call_logs",
+      "protection_level": "dangerous",
+      "risk_level": "CRITICAL",
+      "description": "Allows an application to read the user's call log.",
+      "user_friendly_description": "Can view your complete history of incoming, outgoing, and missed calls.",
+      "is_sensitive_user_data": true,
+      "leak_implications": "Caller history and communication frequency profiling."
+    },
+    "android.permission.WRITE_CALL_LOG": {
+      "family": "call_logs",
+      "protection_level": "dangerous",
+      "risk_level": "HIGH",
+      "description": "Allows an application to write the user's call log.",
+      "user_friendly_description": "Can modify or erase call history records on your phone.",
+      "is_sensitive_user_data": true,
+      "leak_implications": "Anti-forensic tampering with call records."
+    },
+    "android.permission.READ_CALENDAR": {
+      "family": "calendar",
+      "protection_level": "dangerous",
+      "risk_level": "HIGH",
+      "description": "Allows an application to read the user's calendar data.",
+      "user_friendly_description": "Can read your personal appointments, meeting details, and schedules.",
+      "is_sensitive_user_data": true,
+      "leak_implications": "Personal schedule and routine leakage."
+    },
+    "android.permission.WRITE_CALENDAR": {
+      "family": "calendar",
+      "protection_level": "dangerous",
+      "risk_level": "MEDIUM",
+      "description": "Allows an application to write the user's calendar data.",
+      "user_friendly_description": "Can add or edit entries in your personal calendar.",
+      "is_sensitive_user_data": true,
+      "leak_implications": "Calendar tampering or spam event injection."
+    },
+    "android.permission.BLUETOOTH": {
+      "family": "bluetooth_nearby",
+      "protection_level": "normal",
+      "risk_level": "LOW",
+      "description": "Allows applications to connect to paired bluetooth devices.",
+      "user_friendly_description": "Can communicate with devices you have already paired via Bluetooth.",
+      "is_sensitive_user_data": false,
+      "leak_implications": "Paired device communication."
+    },
+    "android.permission.BLUETOOTH_SCAN": {
+      "family": "bluetooth_nearby",
+      "protection_level": "dangerous",
+      "risk_level": "MEDIUM",
+      "description": "Required to be able to discover and pair nearby Bluetooth devices.",
+      "user_friendly_description": "Can search for nearby Bluetooth devices (which can also indicate physical location).",
+      "is_sensitive_user_data": true,
+      "leak_implications": "Beacon proximity tracking and physical presence detection."
+    },
+    "android.permission.BLUETOOTH_CONNECT": {
+      "family": "bluetooth_nearby",
+      "protection_level": "dangerous",
+      "risk_level": "LOW",
+      "description": "Required to be able to connect to paired Bluetooth devices.",
+      "user_friendly_description": "Can connect to Bluetooth accessories such as headphones or smartwatches.",
+      "is_sensitive_user_data": false,
+      "leak_implications": "Peripheral device communication."
+    },
+    "android.permission.NEARBY_WIFI_DEVICES": {
+      "family": "bluetooth_nearby",
+      "protection_level": "dangerous",
+      "risk_level": "MEDIUM",
+      "description": "Required to be able to advertise and connect to nearby Wi-Fi devices.",
+      "user_friendly_description": "Can scan for nearby Wi-Fi devices without needing fine location permission.",
+      "is_sensitive_user_data": true,
+      "leak_implications": "Local network peer mapping."
+    },
+    "android.permission.READ_EXTERNAL_STORAGE": {
+      "family": "storage",
+      "protection_level": "dangerous",
+      "risk_level": "HIGH",
+      "description": "Allows an application to read from external storage.",
+      "user_friendly_description": "Can access documents, downloaded files, and photos stored on your device.",
+      "is_sensitive_user_data": true,
+      "leak_implications": "Unrestricted file access and document harvesting."
+    },
+    "android.permission.WRITE_EXTERNAL_STORAGE": {
+      "family": "storage",
+      "protection_level": "dangerous",
+      "risk_level": "HIGH",
+      "description": "Allows an application to write to external storage.",
+      "user_friendly_description": "Can create, alter, or delete files stored in device shared storage.",
+      "is_sensitive_user_data": true,
+      "leak_implications": "Shared storage alteration and data caching."
+    },
+    "android.permission.MANAGE_EXTERNAL_STORAGE": {
+      "family": "storage",
+      "protection_level": "signature|appop",
+      "risk_level": "CRITICAL",
+      "description": "Allows an application a broad access to external storage in all-files access.",
+      "user_friendly_description": "Has full access to manage and modify every file on your device storage.",
+      "is_sensitive_user_data": true,
+      "leak_implications": "Broad filesystem harvesting and complete data access."
+    },
+    "android.permission.READ_MEDIA_IMAGES": {
+      "family": "storage",
+      "protection_level": "dangerous",
+      "risk_level": "HIGH",
+      "description": "Allows an application to read image files from external storage.",
+      "user_friendly_description": "Can view and inspect all photos stored on your device.",
+      "is_sensitive_user_data": true,
+      "leak_implications": "Personal photography and EXIF location metadata exposure."
+    },
+    "android.permission.READ_MEDIA_VIDEO": {
+      "family": "storage",
+      "protection_level": "dangerous",
+      "risk_level": "HIGH",
+      "description": "Allows an application to read video files from external storage.",
+      "user_friendly_description": "Can view all recorded videos stored on your device.",
+      "is_sensitive_user_data": true,
+      "leak_implications": "Private video collection exposure."
+    },
+    "android.permission.READ_MEDIA_AUDIO": {
+      "family": "storage",
+      "protection_level": "dangerous",
+      "risk_level": "MEDIUM",
+      "description": "Allows an application to read audio files from external storage.",
+      "user_friendly_description": "Can read audio recordings and music files stored on your device.",
+      "is_sensitive_user_data": true,
+      "leak_implications": "Voice memos and audio file access."
+    },
+    "android.permission.POST_NOTIFICATIONS": {
+      "family": "notifications",
+      "protection_level": "dangerous",
+      "risk_level": "LOW",
+      "description": "Allows an app to post notifications.",
+      "user_friendly_description": "Can show notifications and alerts in your system tray.",
+      "is_sensitive_user_data": false,
+      "leak_implications": "Notification spam or alert fatigue."
+    },
+    "android.permission.BIND_NOTIFICATION_LISTENER_SERVICE": {
+      "family": "notifications",
+      "protection_level": "signature",
+      "risk_level": "CRITICAL",
+      "description": "Must be required by an NotificationListenerService, to ensure that only the system can bind to it.",
+      "user_friendly_description": "Can read the text of all notifications generated by any app on your phone.",
+      "is_sensitive_user_data": true,
+      "leak_implications": "Cross-application notification interception (reading chats, codes, alerts)."
+    },
+    "android.permission.USE_BIOMETRIC": {
+      "family": "biometrics",
+      "protection_level": "normal",
+      "risk_level": "LOW",
+      "description": "Allows an app to use device supported biometric modalities.",
+      "user_friendly_description": "Can request user authentication via fingerprint or facial recognition.",
+      "is_sensitive_user_data": false,
+      "leak_implications": "Biometric authentication prompt trigger."
+    },
+    "android.permission.USE_FINGERPRINT": {
+      "family": "biometrics",
+      "protection_level": "normal",
+      "risk_level": "LOW",
+      "description": "This constant was deprecated in API level 28. Applications should use USE_BIOMETRIC instead.",
+      "user_friendly_description": "Can prompt for fingerprint verification (legacy Android API).",
+      "is_sensitive_user_data": false,
+      "leak_implications": "Biometric prompt trigger."
+    },
+    "android.permission.INTERNET": {
+      "family": "network",
+      "protection_level": "normal",
+      "risk_level": "LOW",
+      "description": "Allows applications to open network sockets.",
+      "user_friendly_description": "Allows connecting to the internet and remote web servers.",
+      "is_sensitive_user_data": false,
+      "leak_implications": "Primary transport vector for transmitting collected data off-device."
+    },
+    "android.permission.ACCESS_NETWORK_STATE": {
+      "family": "network",
+      "protection_level": "normal",
+      "risk_level": "LOW",
+      "description": "Allows applications to access information about networks.",
+      "user_friendly_description": "Can check if the device is connected to Wi-Fi or cellular data.",
+      "is_sensitive_user_data": false,
+      "leak_implications": "Network connectivity monitoring."
+    },
+    "android.permission.WAKE_LOCK": {
+      "family": "system",
+      "protection_level": "normal",
+      "risk_level": "LOW",
+      "description": "Allows using PowerManager WakeLocks to keep processor from sleeping.",
+      "user_friendly_description": "Prevents your device screen or processor from going to sleep.",
+      "is_sensitive_user_data": false,
+      "leak_implications": "Battery drain risk."
+    },
+    "android.permission.VIBRATE": {
+      "family": "hardware",
+      "protection_level": "normal",
+      "risk_level": "INFO",
+      "description": "Allows access to the vibrator.",
+      "user_friendly_description": "Can activate the device vibration motor for haptic feedback.",
+      "is_sensitive_user_data": false,
+      "leak_implications": "None."
+    },
+    "android.permission.RECEIVE_BOOT_COMPLETED": {
+      "family": "system",
+      "protection_level": "normal",
+      "risk_level": "LOW",
+      "description": "Allows an application to receive the Intent.ACTION_BOOT_COMPLETED.",
+      "user_friendly_description": "Can start automatically as soon as your phone finishes turning on.",
+      "is_sensitive_user_data": false,
+      "leak_implications": "Persistent background launch."
+    }
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "tracking_indicators": [
+    {
+      "indicator_id": "TRK_CLEAR_TEXT_TRAFFIC",
+      "name": "Cleartext HTTP Traffic",
+      "regex": "http://[a-zA-Z0-9.-]+(:[0-9]+)?(/[a-zA-Z0-9._~:/?#\\[\\]@!$&'()*+,;=-]*)?",
+      "severity": "HIGH",
+      "description": "Unencrypted network transmission indicator vulnerable to eavesdropping."
+    },
+    {
+      "indicator_id": "TRK_DEVICE_ID_HARVEST",
+      "name": "Hardware Identifier Extraction Method",
+      "regex": "(getDeviceId|getImei|getSubscriberId|getSimSerialNumber|getMacAddress)",
+      "severity": "HIGH",
+      "description": "Static call indicator accessing persistent hardware identifiers."
+    },
+    {
+      "indicator_id": "TRK_GEO_LOCATION_API",
+      "name": "Geolocation Access Method",
+      "regex": "(getLastKnownLocation|requestLocationUpdates|getLatitude|getLongitude)",
+      "severity": "MEDIUM",
+      "description": "Static indicator retrieving device geolocation coordinates."
+    },
+    {
+      "indicator_id": "TRK_HARDCODED_API_KEY",
+      "name": "Potential Hardcoded Cloud/Service Secret",
+      "regex": "(?i)(AIza[0-9A-Za-z-_]{30,40}|AKIA[0-9A-Z]{16})",
+      "severity": "CRITICAL",
+      "description": "Hardcoded cloud credential or service token embedded in strings."
+    }
+  ]
+}
