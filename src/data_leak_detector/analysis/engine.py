@@ -146,6 +146,7 @@ class AnalysisEngine:
         self.permission_analyzer = permission_analyzer or PermissionAnalyzer()
         self.risk_scorer = risk_scorer or RiskScorer()
         self._cancelled = False
+        self._stage_rules_cache: dict[AnalysisStage, list[BaseRule]] = {}
 
     def cancel(self) -> None:
         """Signal cooperative cancellation to any running analysis."""
@@ -550,15 +551,27 @@ class AnalysisEngine:
             )
 
         # 4. Direct Archive Extraction (Always available fallback)
+        binary_extensions = (
+            ".png", ".jpg", ".jpeg", ".gif", ".webp", ".so", ".dylib",
+            ".dll", ".bin", ".mp3", ".wav", ".ogg", ".ttf", ".otf", ".woff", ".arsc",
+        )
         try:
             with zipfile.ZipFile(apk_path, "r") as zf:
-                for entry_name in zf.namelist():
+                for info in zf.infolist():
+                    entry_name = info.filename
                     if not is_safe_zip_path(entry_name):
+                        continue
+
+                    # Skip non-code binary assets immediately
+                    if entry_name.lower().endswith(binary_extensions):
                         continue
 
                     # Extract printable strings from DEX bytecode pools
                     if entry_name.endswith(".dex"):
                         try:
+                            # Bound individual DEX pool scanning
+                            if info.file_size > self.config.max_scanned_file_size_bytes * 10:
+                                continue
                             dex_bytes = zf.read(entry_name)
                             dex_strings = re.findall(rb"[\x20-\x7E]{4,}", dex_bytes)
                             for s in dex_strings:
@@ -575,14 +588,15 @@ class AnalysisEngine:
                             entry_name not in extracted_files
                             and len(extracted_files) < self.config.max_extracted_file_count
                         ):
-                            try:
-                                raw_bytes = zf.read(entry_name)
-                                if len(raw_bytes) <= self.config.max_scanned_file_size_bytes:
+                            # Verify size before reading into memory
+                            if info.file_size <= self.config.max_scanned_file_size_bytes:
+                                try:
+                                    raw_bytes = zf.read(entry_name)
                                     extracted_files[entry_name] = raw_bytes.decode(
                                         "utf-8", errors="replace"
                                     )
-                            except Exception:
-                                pass
+                                except Exception:
+                                    pass
         except Exception as e:
             logger.debug(f"Direct ZIP inspection error: {e}")
 
@@ -654,6 +668,16 @@ class AnalysisEngine:
         classes: list[str],
     ) -> dict[str, Any]:
         """Construct the unified evaluation context matching all static rule signatures."""
+        # Pre-build text targets cache so 40+ rules do not redundantly join strings or re-scan files
+        cached_targets: list[tuple[str, str]] = []
+        if extracted_strings:
+            cached_targets.append(("DEX:StringPool", "\n".join(extracted_strings)))
+        for fname, content in extracted_files.items():
+            if isinstance(content, str):
+                cached_targets.append((str(fname), content))
+        if parsed_apk.manifest_info and parsed_apk.manifest_info.raw_xml:
+            cached_targets.append(("AndroidManifest.xml", parsed_apk.manifest_info.raw_xml))
+
         return {
             "parsed_apk": parsed_apk,
             "manifest_info": parsed_apk.manifest_info,
@@ -668,6 +692,7 @@ class AnalysisEngine:
             "files": extracted_files,
             "classes": classes,
             "packages": [c.rsplit(".", 1)[0] for c in classes if "." in c],
+            "_cached_text_targets": cached_targets,
         }
 
     def _get_rules_for_stage(self, stage: AnalysisStage) -> list[BaseRule]:
@@ -690,7 +715,10 @@ class AnalysisEngine:
                     rules.append(r)
             return rules
 
-        # Default rules mapped per stage
+        # Cache default rule instances to avoid repeated class instantiation overhead
+        if stage in self._stage_rules_cache:
+            return self._stage_rules_cache[stage]
+
         default_rule_classes: dict[AnalysisStage, list[type[BaseRule]]] = {
             AnalysisStage.SCANNING_MANIFEST: ALL_MANIFEST_RULES,
             AnalysisStage.SCANNING_SECRETS: ALL_SECRET_RULES,
@@ -701,7 +729,9 @@ class AnalysisEngine:
         }
 
         rule_cls_list = default_rule_classes.get(stage, [])
-        return [cls() for cls in rule_cls_list]
+        instances = [cls() for cls in rule_cls_list]
+        self._stage_rules_cache[stage] = instances
+        return instances
 
     def _execute_rules(
         self,

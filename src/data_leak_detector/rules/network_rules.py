@@ -123,6 +123,9 @@ def _is_localhost_or_test_host(hostname: str) -> bool:
 
 def _extract_text_targets(context: Any) -> list[tuple[str, str]]:
     """Helper extracting (source_location, text_content) pairs from analysis context."""
+    if isinstance(context, dict) and "_cached_text_targets" in context:
+        return context["_cached_text_targets"]
+
     targets: list[tuple[str, str]] = []
 
     if isinstance(context, ParsedAPKData):
@@ -169,11 +172,18 @@ def _extract_text_targets(context: Any) -> list[tuple[str, str]]:
     return targets
 
 
+_TRACKING_CATALOG_CACHE: list[dict[str, str]] | None = None
+
+
 def _load_tracking_catalog() -> list[dict[str, str]]:
     """Load known tracking/advertising domains from resources/tracking_patterns.json.
     
     Falls back to a curated catalog if the resource file cannot be read.
     """
+    global _TRACKING_CATALOG_CACHE
+    if _TRACKING_CATALOG_CACHE is not None:
+        return _TRACKING_CATALOG_CACHE
+
     config = AppConfig()
     patterns_file = config.resources_dir / "tracking_patterns.json"
 
@@ -182,7 +192,8 @@ def _load_tracking_catalog() -> list[dict[str, str]]:
             with open(patterns_file, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 if isinstance(data, dict) and "tracking_domains" in data:
-                    return list(data["tracking_domains"])
+                    _TRACKING_CATALOG_CACHE = list(data["tracking_domains"])
+                    return _TRACKING_CATALOG_CACHE
         except Exception as exc:
             logger.warning(
                 f"Failed to read tracking catalog from {patterns_file}: {exc}. Using built-in catalog."

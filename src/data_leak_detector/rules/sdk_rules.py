@@ -83,11 +83,17 @@ CATEGORY_DEFAULT_FAMILIES: dict[str, list[str]] = {
 }
 
 
+_SDK_CATALOG_CACHE: dict[Path | None, list[dict[str, Any]]] = {}
+
+
 def _load_sdk_catalog(custom_path: Path | None = None) -> list[dict[str, Any]]:
     """Load configurable SDK patterns from resources/sdk_patterns.json.
     
     Falls back to a curated default catalog if the file is unavailable.
     """
+    if custom_path in _SDK_CATALOG_CACHE:
+        return _SDK_CATALOG_CACHE[custom_path]
+
     config = AppConfig()
     patterns_file = custom_path if custom_path else config.resources_dir / "sdk_patterns.json"
 
@@ -97,9 +103,13 @@ def _load_sdk_catalog(custom_path: Path | None = None) -> list[dict[str, Any]]:
                 data = json.load(f)
                 if isinstance(data, dict):
                     if "sdk_definitions" in data and isinstance(data["sdk_definitions"], list):
-                        return list(data["sdk_definitions"])
+                        res = list(data["sdk_definitions"])
+                        _SDK_CATALOG_CACHE[custom_path] = res
+                        return res
                     if "ad_and_analytics_sdks" in data and isinstance(data["ad_and_analytics_sdks"], list):
-                        return list(data["ad_and_analytics_sdks"])
+                        res = list(data["ad_and_analytics_sdks"])
+                        _SDK_CATALOG_CACHE[custom_path] = res
+                        return res
         except Exception as exc:
             logger.warning(
                 f"Failed to read SDK patterns from {patterns_file}: {exc}. Using built-in catalog."

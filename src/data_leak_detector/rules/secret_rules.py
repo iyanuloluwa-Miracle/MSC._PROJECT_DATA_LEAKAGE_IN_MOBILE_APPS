@@ -32,6 +32,9 @@ def _extract_text_targets(context: Any) -> list[tuple[str, str]]:
     - Raw manifest XML
     - Decompiled files or source dictionary
     """
+    if isinstance(context, dict) and "_cached_text_targets" in context:
+        return context["_cached_text_targets"]
+
     targets: list[tuple[str, str]] = []
 
     if isinstance(context, ParsedAPKData):

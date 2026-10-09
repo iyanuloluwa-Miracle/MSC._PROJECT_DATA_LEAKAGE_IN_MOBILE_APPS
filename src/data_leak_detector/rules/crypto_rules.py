@@ -35,6 +35,9 @@ logger = logging.getLogger(__name__)
 
 def _extract_text_targets(context: Any) -> list[tuple[str, str]]:
     """Helper extracting (source_location, text_content) pairs from analysis context."""
+    if isinstance(context, dict) and "_cached_text_targets" in context:
+        return context["_cached_text_targets"]
+
     targets: list[tuple[str, str]] = []
 
     if isinstance(context, ParsedAPKData):

@@ -79,11 +79,30 @@ class AppConfig:
     disabled_rules: list[str] = field(default_factory=list)
 
     def __post_init__(self) -> None:
-        self.resources_dir = self.base_dir / "resources"
+        import sys
+        import tempfile
+
+        if getattr(sys, "frozen", False):
+            meipass = getattr(sys, "_MEIPASS", None)
+            if meipass:
+                self.resources_dir = Path(meipass) / "resources"
+            else:
+                self.resources_dir = Path(sys.executable).resolve().parent / "resources"
+            # Fallback if resources directory not directly at target
+            if not self.resources_dir.exists():
+                internal_fb = Path(sys.executable).resolve().parent / "_internal" / "resources"
+                if internal_fb.exists():
+                    self.resources_dir = internal_fb
+                elif (self.base_dir / "resources").exists():
+                    self.resources_dir = self.base_dir / "resources"
+            self.temp_dir = Path(tempfile.gettempdir()) / "MobileDataLeakDetector_temp"
+        else:
+            self.resources_dir = self.base_dir / "resources"
+            self.temp_dir = self.base_dir / "temp_decompiled"
+
+        self.temp_dir.mkdir(parents=True, exist_ok=True)
         from data_leak_detector.storage.database import get_default_database_path
         self.database_path = get_default_database_path()
-        self.temp_dir = self.base_dir / "temp_decompiled"
-        self.temp_dir.mkdir(parents=True, exist_ok=True)
         self.config_file_path = get_default_config_path()
 
         if self.jadx_path and not isinstance(self.jadx_path, (str, Path)):

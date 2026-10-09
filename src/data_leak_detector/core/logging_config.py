@@ -53,14 +53,36 @@ class SensitiveDataFilter(logging.Filter):
 
 def setup_logging(level: int = logging.INFO) -> None:
     """Configure root logger with privacy-preserving redacting filter."""
+    import sys
+
     logger = logging.getLogger("data_leak_detector")
     logger.setLevel(level)
 
     if not logger.handlers:
-        handler = logging.StreamHandler()
-        formatter = logging.Formatter(
-            "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
-        )
-        handler.setFormatter(formatter)
-        handler.addFilter(SensitiveDataFilter())
-        logger.addHandler(handler)
+        # Check if sys.stderr is available (can be None in windowed PyInstaller mode)
+        stream = sys.stderr if sys.stderr is not None else sys.stdout
+        if stream is not None:
+            handler = logging.StreamHandler(stream)
+            formatter = logging.Formatter(
+                "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+            )
+            handler.setFormatter(formatter)
+            handler.addFilter(SensitiveDataFilter())
+            logger.addHandler(handler)
+
+        # Persistent user log file in application data directory
+        try:
+            from data_leak_detector.core.config import get_default_config_dir
+
+            log_dir = get_default_config_dir() / "logs"
+            log_dir.mkdir(parents=True, exist_ok=True)
+            log_file = log_dir / "app.log"
+            file_handler = logging.FileHandler(log_file, encoding="utf-8")
+            file_formatter = logging.Formatter(
+                "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+            )
+            file_handler.setFormatter(file_formatter)
+            file_handler.addFilter(SensitiveDataFilter())
+            logger.addHandler(file_handler)
+        except Exception:
+            pass
