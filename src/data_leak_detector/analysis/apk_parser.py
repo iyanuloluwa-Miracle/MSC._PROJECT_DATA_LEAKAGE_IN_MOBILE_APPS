@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from data_leak_detector.core.config import AppConfig
 from data_leak_detector.core.exceptions import (
     APKParsingError,
     InvalidAPKError,
@@ -19,6 +20,7 @@ from data_leak_detector.core.models import (
     ManifestData,
     ParsedAPKData,
 )
+from data_leak_detector.core.path_safety import is_safe_zip_path
 
 
 logger = logging.getLogger(__name__)
@@ -30,14 +32,17 @@ class APKParser:
     Guarantees:
     - Never executes or installs the APK.
     - Validates file existence, file type, and ZIP archive integrity before parsing.
+    - Enforces configurable limits on archive size, entry counts, and decompression ratios.
+    - Neutralizes Zip Slip / Path Traversal archive entries.
     - Gracefully handles malformed or corrupted packages.
     - Sanitizes logging to prevent exposing raw secrets.
     """
 
     CHUNK_SIZE = 65536  # 64 KB read buffer for hashing
 
-    def __init__(self, apk_path: Path | str) -> None:
+    def __init__(self, apk_path: Path | str, config: AppConfig | None = None) -> None:
         self.apk_path = Path(apk_path).resolve()
+        self.config = config or AppConfig()
 
     def validate_file(self) -> None:
         """Validate that the target path exists, is a regular file, and has valid ZIP/APK structure."""
@@ -45,6 +50,16 @@ class APKParser:
             raise InvalidAPKError(f"APK file does not exist: {self.apk_path}")
         if not self.apk_path.is_file():
             raise InvalidAPKError(f"APK path is not a regular file: {self.apk_path}")
+
+        file_size = self.apk_path.stat().st_size
+        if file_size == 0:
+            raise InvalidAPKError(f"APK file is empty (0 bytes): {self.apk_path.name}")
+
+        if file_size > self.config.max_apk_size_bytes:
+            raise InvalidAPKError(
+                f"APK file size ({file_size} bytes) exceeds configured maximum limit "
+                f"({self.config.max_apk_size_bytes} bytes): {self.apk_path.name}"
+            )
 
         # Validate ZIP archive structure
         if not zipfile.is_zipfile(self.apk_path):
@@ -58,11 +73,46 @@ class APKParser:
                     raise InvalidAPKError(
                         f"APK archive contains corrupted file entry: {bad_file}"
                     )
-                
-                namelist = set(zf.namelist())
-                # An Android APK must contain AndroidManifest.xml or DEX bytecode
-                has_manifest = "AndroidManifest.xml" in namelist
-                has_dex = any(name.endswith(".dex") for name in namelist)
+
+                infolist = zf.infolist()
+                if len(infolist) > self.config.max_extracted_file_count:
+                    raise InvalidAPKError(
+                        f"APK archive contains {len(infolist)} entries, exceeding maximum allowed count "
+                        f"({self.config.max_extracted_file_count})."
+                    )
+
+                total_uncompressed = 0
+                has_manifest = False
+                has_dex = False
+
+                for info in infolist:
+                    entry_name = info.filename
+                    if not is_safe_zip_path(entry_name):
+                        raise InvalidAPKError(
+                            f"Insecure ZIP archive entry detected (Path Traversal / Zip Slip attempt): {entry_name}"
+                        )
+
+                    total_uncompressed += info.file_size
+                    # Check for decompression bomb / extreme compression ratio
+                    if (
+                        info.compress_size > 0
+                        and info.file_size > 10 * 1024 * 1024
+                        and (info.file_size / info.compress_size > 200)
+                    ):
+                        raise InvalidAPKError(
+                            f"Suspiciously high compression ratio detected (potential Zip Bomb): {entry_name}"
+                        )
+
+                    if entry_name == "AndroidManifest.xml":
+                        has_manifest = True
+                    elif entry_name.endswith(".dex"):
+                        has_dex = True
+
+                if total_uncompressed > self.config.max_extracted_size_bytes:
+                    raise InvalidAPKError(
+                        f"Total uncompressed archive size ({total_uncompressed} bytes) exceeds limit "
+                        f"({self.config.max_extracted_size_bytes} bytes)."
+                    )
 
                 if not (has_manifest or has_dex):
                     raise InvalidAPKError(
@@ -210,8 +260,6 @@ class APKParser:
                 )
         except Exception as e:
             logger.debug(f"Could not convert manifest XML or components: {e}")
-
-        from data_leak_detector.core.models import ComponentDetail
 
         return ManifestData(
             package_name=package_name,

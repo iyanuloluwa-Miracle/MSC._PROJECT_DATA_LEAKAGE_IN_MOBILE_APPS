@@ -10,7 +10,7 @@ import tempfile
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Generator, Sequence
+from typing import Any, Generator, Sequence
 
 from data_leak_detector.core.exceptions import ExternalToolError, ToolNotFoundError
 from data_leak_detector.core.logging_config import SensitiveDataFilter
@@ -31,6 +31,7 @@ def get_tool_diagnostics() -> dict[str, str]:
             from androguard.core.apk import APK  # type: ignore
         except ImportError:
             from androguard.core.bytecodes.apk import APK  # type: ignore
+        _ = APK
         androguard_status = "AVAILABLE"
     except ImportError:
         androguard_status = "UNAVAILABLE"
@@ -55,8 +56,16 @@ def temporary_decompilation_dir(prefix: str = "mld_tmp_") -> Generator[Path, Non
     try:
         yield target_path
     finally:
+        def _handle_remove_readonly(func: Any, path: str, exc: Any) -> None:
+            import stat
+            try:
+                os.chmod(path, stat.S_IWRITE)
+                func(path)
+            except Exception:
+                pass
+
         try:
-            shutil.rmtree(target_path, ignore_errors=True)
+            shutil.rmtree(target_path, onerror=_handle_remove_readonly)
             logger.debug(f"Cleaned up temporary decompilation directory: {target_path}")
         except Exception as e:
             logger.warning(f"Failed to cleanly remove temporary directory {target_path}: {e}")
@@ -89,9 +98,16 @@ class ToolAdapter(ABC):
         Guarantees:
         - NEVER uses shell=True.
         - Enforces execution timeout.
+        - Validates arguments against NUL byte injection.
         - Redacts any sensitive data from log output.
         - Handles failure gracefully with typed exceptions.
         """
+        for arg in cmd_args:
+            if "\x00" in arg:
+                raise ExternalToolError(
+                    f"Subprocess argument contains illegal NUL byte: {repr(arg)}"
+                )
+
         if not self.is_available():
             raise ToolNotFoundError(
                 f"External tool '{self.executable_name}' is not found on system PATH."

@@ -8,7 +8,6 @@ from typing import Any
 
 from data_leak_detector.core.models import (
     Confidence,
-    Finding,
     FindingCategory,
     SecurityFinding,
     Severity,

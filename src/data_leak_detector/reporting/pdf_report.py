@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-from reportlab.lib.units import inch
 from reportlab.platypus import (
     HRFlowable,
     KeepTogether,
@@ -22,12 +21,7 @@ from reportlab.platypus import (
 
 from data_leak_detector.core.exceptions import ReportGenerationError
 from data_leak_detector.core.logging_config import SensitiveDataFilter
-from data_leak_detector.core.models import (
-    AnalysisResult,
-    PermissionFinding,
-    SecurityFinding,
-    Severity,
-)
+from data_leak_detector.core.models import AnalysisResult
 from data_leak_detector.reporting.text_report import (
     STATIC_ANALYSIS_DISCLAIMER,
     sort_findings_by_severity,
@@ -148,7 +142,6 @@ class PDFReportFormatter:
             # Permission stats
             dangerous_perms = sum(1 for p in self.result.permissions if "dangerous" in p.protection_level.lower())
             sensitive_data_perms = sum(1 for p in self.result.permissions if p.is_sensitive_user_data)
-            sensitive_families = sorted({p.family for p in self.result.permissions if p.family})
 
             # Rating colors
             rating_colors = {

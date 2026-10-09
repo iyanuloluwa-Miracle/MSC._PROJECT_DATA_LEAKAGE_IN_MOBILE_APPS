@@ -7,7 +7,7 @@ import logging
 import unittest
 
 from data_leak_detector.core.logging_config import SensitiveDataFilter
-from data_leak_detector.core.models import FindingCategory, Severity
+from data_leak_detector.core.models import Severity
 from data_leak_detector.core.redactor import (
     calculate_shannon_entropy,
     is_placeholder_or_sample,

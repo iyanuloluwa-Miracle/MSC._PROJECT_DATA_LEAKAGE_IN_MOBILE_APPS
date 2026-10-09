@@ -23,7 +23,6 @@ from data_leak_detector.core.models import (
     FindingCategory,
     PermissionFinding,
     RiskRating,
-    RiskScore,
     SecurityFinding,
     Severity,
 )
@@ -38,8 +37,6 @@ from data_leak_detector.ui.widgets import (
     DropZone,
     EmptyState,
     ExpandableFindingCard,
-    ExportToolbar,
-    FilterBar,
     MetricCard,
     SeverityBadge,
 )

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import math
 import re
-from typing import Sequence
 
 
 # Common test, example, and placeholder patterns to filter false positives

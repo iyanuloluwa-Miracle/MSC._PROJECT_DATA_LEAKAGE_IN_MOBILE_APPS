@@ -10,7 +10,6 @@ from data_leak_detector.core.exceptions import ReportGenerationError
 from data_leak_detector.core.logging_config import SensitiveDataFilter
 from data_leak_detector.core.models import (
     AnalysisResult,
-    PermissionFinding,
     SecurityFinding,
     Severity,
 )

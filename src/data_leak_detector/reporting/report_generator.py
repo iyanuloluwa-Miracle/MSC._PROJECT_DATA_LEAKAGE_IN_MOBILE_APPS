@@ -6,6 +6,7 @@ import logging
 from pathlib import Path
 
 from data_leak_detector.core.models import AnalysisResult
+from data_leak_detector.core.path_safety import validate_output_path
 from data_leak_detector.reporting.html_report import HTMLReportFormatter
 from data_leak_detector.reporting.pdf_report import PDFReportFormatter
 from data_leak_detector.reporting.text_report import TextReportFormatter
@@ -22,18 +23,21 @@ class ReportGenerator:
 
     def generate_pdf(self, output_path: Path | str) -> Path:
         """Generate PDF audit report using ReportLab."""
+        safe_path = validate_output_path(output_path)
         formatter = PDFReportFormatter(self.result)
-        return formatter.render(Path(output_path))
+        return formatter.render(safe_path)
 
     def generate_html(self, output_path: Path | str) -> Path:
         """Generate HTML static audit report."""
+        safe_path = validate_output_path(output_path)
         formatter = HTMLReportFormatter(self.result)
-        return formatter.render(Path(output_path))
+        return formatter.render(safe_path)
 
     def generate_text(self, output_path: Path | str) -> Path:
         """Generate plain text / markdown audit summary."""
+        safe_path = validate_output_path(output_path)
         formatter = TextReportFormatter(self.result)
-        return formatter.render(Path(output_path))
+        return formatter.render(safe_path)
 
     def generate_all(
         self,
@@ -49,12 +53,12 @@ class ReportGenerator:
         Returns:
             Dictionary mapping format keys ("html", "pdf", "txt") to their created paths.
         """
-        out_dir = Path(output_dir)
-        out_dir.mkdir(parents=True, exist_ok=True)
+        safe_dir = validate_output_path(output_dir)
+        safe_dir.mkdir(parents=True, exist_ok=True)
         name = base_filename or f"scan_report_{self.result.analysis_id[:8]}"
 
         return {
-            "html": self.generate_html(out_dir / f"{name}.html"),
-            "pdf": self.generate_pdf(out_dir / f"{name}.pdf"),
-            "txt": self.generate_text(out_dir / f"{name}.txt"),
+            "html": self.generate_html(safe_dir / f"{name}.html"),
+            "pdf": self.generate_pdf(safe_dir / f"{name}.pdf"),
+            "txt": self.generate_text(safe_dir / f"{name}.txt"),
         }

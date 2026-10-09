@@ -24,7 +24,8 @@ from typing import Any, Callable, Sequence
 from data_leak_detector.analysis.engine import AnalysisEngine, CancellationToken
 from data_leak_detector.core.config import AppConfig
 from data_leak_detector.core.exceptions import AnalysisCancelledError
-from data_leak_detector.core.models import AnalysisResult, Severity
+from data_leak_detector.core.models import AnalysisResult
+from data_leak_detector.core.path_safety import validate_output_path
 
 logger = logging.getLogger(__name__)
 
@@ -111,15 +112,25 @@ class BatchItem:
         return 0.0
 
 
+def _sanitize_csv_cell(value: Any) -> str:
+    """Neutralize CSV formula injection (CWE-123) for untrusted values."""
+    s = str(value) if value is not None else ""
+    if s and s[0] in ("=", "+", "-", "@", "\t", "\r"):
+        return f"'{s}"
+    return s
+
+
 def export_batch_summary_csv(items: Sequence[BatchItem], output_path: Path | str) -> Path:
     """Export batch results summary to CSV.
 
     Guarantees:
     - Contains strictly statistical and metadata columns.
     - Zero sensitive evidence, decoded secrets, or source snippets are written to disk.
+    - Output path is validated against traversal and Windows reserved names.
+    - Cell contents are sanitized against CSV formula injection (CWE-123).
     - Output path is returned as a Path object.
     """
-    target = Path(output_path)
+    target = validate_output_path(output_path)
     target.parent.mkdir(parents=True, exist_ok=True)
 
     headers = [
@@ -169,17 +180,17 @@ def export_batch_summary_csv(items: Sequence[BatchItem], output_path: Path | str
                 duration_str = f"{item.duration_seconds:.2f}s" if item.duration_seconds > 0 else ""
 
             row = [
-                item.filename,
-                item.package_name or "",
-                item.sha256 or "",
-                ts,
-                score_str,
-                rating_str,
-                crit,
-                hi,
-                med,
-                lo,
-                duration_str,
+                _sanitize_csv_cell(item.filename),
+                _sanitize_csv_cell(item.package_name or ""),
+                _sanitize_csv_cell(item.sha256 or ""),
+                _sanitize_csv_cell(ts),
+                _sanitize_csv_cell(score_str),
+                _sanitize_csv_cell(rating_str),
+                _sanitize_csv_cell(crit),
+                _sanitize_csv_cell(hi),
+                _sanitize_csv_cell(med),
+                _sanitize_csv_cell(lo),
+                _sanitize_csv_cell(duration_str),
             ]
             writer.writerow(row)
 

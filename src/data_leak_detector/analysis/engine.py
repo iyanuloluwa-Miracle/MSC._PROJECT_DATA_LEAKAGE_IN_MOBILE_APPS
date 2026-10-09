@@ -23,7 +23,7 @@ import shutil
 import tempfile
 import uuid
 import zipfile
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
@@ -39,22 +39,14 @@ from data_leak_detector.analysis.tool_adapters import (
 from data_leak_detector.core.config import AppConfig
 from data_leak_detector.core.exceptions import (
     AnalysisCancelledError,
-    APKParsingError,
-    DetectorError,
     ExternalToolError,
-    InvalidAPKError,
-    ToolNotFoundError,
 )
 from data_leak_detector.core.logging_config import SensitiveDataFilter
+from data_leak_detector.core.path_safety import is_safe_zip_path
 from data_leak_detector.core.models import (
     AnalysisMetrics,
     AnalysisResult,
-    ApplicationMetadata,
-    ManifestData,
     ParsedAPKData,
-    PermissionFinding,
-    RiskRating,
-    RiskScore,
     SecurityFinding,
 )
 from data_leak_detector.rules.base import BaseRule
@@ -404,9 +396,12 @@ class AnalysisEngine:
             # -----------------------------------------------------------------
             self._clean_temporary_dirs(temp_dirs_to_clean)
 
+    # Convenience alias for analyze_apk
+    analyze = analyze_apk
+
     def _create_apk_parser(self, apk_path: Path) -> APKParser:
         """Factory method creating an APKParser instance."""
-        return APKParser(apk_path)
+        return APKParser(apk_path, config=self.config)
 
     def _create_temp_dir(self, prefix: str) -> Path:
         """Create a dedicated temporary directory."""
@@ -415,11 +410,19 @@ class AnalysisEngine:
         return Path(temp_dir)
 
     def _clean_temporary_dirs(self, temp_dirs: list[Path]) -> None:
-        """Safely delete all recorded temporary directories."""
+        """Safely delete all recorded temporary directories, handling locked/read-only files."""
+        def _handle_remove_readonly(func: Any, path: str, exc: Any) -> None:
+            import stat
+            try:
+                os.chmod(path, stat.S_IWRITE)
+                func(path)
+            except Exception:
+                pass
+
         for d in temp_dirs:
             try:
                 if d.exists():
-                    shutil.rmtree(d, ignore_errors=True)
+                    shutil.rmtree(d, onerror=_handle_remove_readonly)
                     logger.debug(f"Removed temporary directory: {d}")
             except Exception as e:
                 logger.warning(f"Failed to remove temporary directory {d}: {e}")
@@ -550,6 +553,9 @@ class AnalysisEngine:
         try:
             with zipfile.ZipFile(apk_path, "r") as zf:
                 for entry_name in zf.namelist():
+                    if not is_safe_zip_path(entry_name):
+                        continue
+
                     # Extract printable strings from DEX bytecode pools
                     if entry_name.endswith(".dex"):
                         try:
@@ -565,10 +571,13 @@ class AnalysisEngine:
 
                     # Fallback text resources if apktool wasn't run
                     elif entry_name.endswith((".json", ".properties", ".txt")):
-                        if entry_name not in extracted_files:
+                        if (
+                            entry_name not in extracted_files
+                            and len(extracted_files) < self.config.max_extracted_file_count
+                        ):
                             try:
                                 raw_bytes = zf.read(entry_name)
-                                if len(raw_bytes) <= 1_048_576:  # Max 1MB per asset
+                                if len(raw_bytes) <= self.config.max_scanned_file_size_bytes:
                                     extracted_files[entry_name] = raw_bytes.decode(
                                         "utf-8", errors="replace"
                                     )
@@ -585,15 +594,23 @@ class AnalysisEngine:
         extracted_files: dict[str, str],
         valid_extensions: tuple[str, ...],
         prefix: str = "",
-        max_file_size: int = 1_048_576,  # 1MB limit per file
+        max_file_size: int | None = None,
     ) -> None:
         """Walk a directory and store matching text files into the extracted_files dictionary."""
+        effective_max = (
+            max_file_size
+            if max_file_size is not None
+            else self.config.max_scanned_file_size_bytes
+        )
         for root, _, files in os.walk(base_dir):
             for file_name in files:
+                if len(extracted_files) >= self.config.max_extracted_file_count:
+                    logger.warning("Reached maximum extracted file count limit.")
+                    return
                 if file_name.endswith(valid_extensions):
                     file_path = Path(root) / file_name
                     try:
-                        if file_path.stat().st_size <= max_file_size:
+                        if file_path.stat().st_size <= effective_max:
                             rel_path = f"{prefix}{file_path.relative_to(base_dir)}"
                             extracted_files[rel_path] = file_path.read_text(
                                 encoding="utf-8", errors="replace"

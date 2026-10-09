@@ -11,13 +11,15 @@ from data_leak_detector.core.models import ParsedAPKData
 
 
 class TestAPKIntegration(unittest.TestCase):
+    @unittest.skipUnless(
+        os.environ.get("TEST_APK_PATH"),
+        "Optional real-device integration test: requires TEST_APK_PATH environment variable.",
+    )
     def test_real_apk_parsing(self) -> None:
         """Integration test against an actual APK supplied via TEST_APK_PATH."""
         apk_env = os.environ.get("TEST_APK_PATH")
         if not apk_env:
-            self.skipTest(
-                "TEST_APK_PATH environment variable not set. Skipping real APK integration test."
-            )
+            return
 
         apk_path = Path(apk_env)
         if not apk_path.exists():

@@ -7,7 +7,6 @@ import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 
-from data_leak_detector.core.exceptions import ReportGenerationError
 from data_leak_detector.core.models import (
     AnalysisMetrics,
     AnalysisResult,
@@ -23,7 +22,6 @@ from data_leak_detector.reporting.html_report import HTMLReportFormatter
 from data_leak_detector.reporting.pdf_report import PDFReportFormatter
 from data_leak_detector.reporting.report_generator import ReportGenerator
 from data_leak_detector.reporting.text_report import (
-    STATIC_ANALYSIS_DISCLAIMER,
     TextReportFormatter,
     sort_findings_by_severity,
 )

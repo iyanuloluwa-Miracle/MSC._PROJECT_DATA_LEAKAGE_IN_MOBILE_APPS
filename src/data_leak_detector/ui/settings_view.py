@@ -3,19 +3,16 @@
 from __future__ import annotations
 
 import logging
-import os
 import shutil
 import subprocess
-import sys
 import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
-from typing import Any
+from typing import Callable
 
 from data_leak_detector.analysis.tool_adapters import ApktoolAdapter, JadxAdapter
 from data_leak_detector.core.config import AppConfig
 from data_leak_detector.ui.widgets import (
-    COLOR_ACCENT,
     COLOR_BG,
     COLOR_BORDER_LIGHT,
     COLOR_CARD_BG,
@@ -27,7 +24,6 @@ from data_leak_detector.ui.widgets import (
     FONT_CODE,
     FONT_HEADING,
     FONT_SMALL,
-    FONT_SUBHEADING,
     FONT_SUBTITLE,
     FONT_TITLE,
     ScrollableFrame,

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import unittest
-from pathlib import Path
 
 from data_leak_detector.analysis.permission_analyzer import (
     PermissionAnalyser,
@@ -12,7 +11,6 @@ from data_leak_detector.analysis.permission_analyzer import (
 from data_leak_detector.core.models import (
     ApplicationMetadata,
     ParsedAPKData,
-    PermissionSummary,
     Severity,
 )
 

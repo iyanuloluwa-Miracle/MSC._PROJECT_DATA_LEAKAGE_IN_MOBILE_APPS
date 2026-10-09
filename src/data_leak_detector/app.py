@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 import sys
-from pathlib import Path
 
 from data_leak_detector.core.config import AppConfig
 from data_leak_detector.core.logging_config import setup_logging

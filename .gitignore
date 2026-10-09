@@ -36,6 +36,7 @@ venv.bak/
 
 # Unit test / coverage reports
 htmlcov/
+docs/coverage/
 .tox/
 .nox/
 .coverage

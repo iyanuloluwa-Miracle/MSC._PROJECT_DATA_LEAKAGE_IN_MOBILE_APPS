@@ -13,16 +13,12 @@ from data_leak_detector.core.models import AnalysisResult
 from data_leak_detector.reporting.report_generator import ReportGenerator
 from data_leak_detector.storage.database import DatabaseManager
 from data_leak_detector.ui.widgets import (
-    COLOR_ACCENT,
     COLOR_BG,
     COLOR_BORDER_LIGHT,
     COLOR_CARD_BG,
     COLOR_TEXT_MUTED,
     COLOR_TEXT_PRIMARY,
-    FONT_BODY,
     FONT_BODY_BOLD,
-    FONT_HEADING,
-    FONT_SMALL,
     FONT_SUBTITLE,
     FONT_TITLE,
     EmptyState,

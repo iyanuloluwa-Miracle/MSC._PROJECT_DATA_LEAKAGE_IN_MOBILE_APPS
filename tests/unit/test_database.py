@@ -21,7 +21,6 @@ from data_leak_detector.core.models import (
     Severity,
 )
 from data_leak_detector.storage.database import (
-    ApplicationRecord,
     DatabaseManager,
     get_default_database_path,
 )

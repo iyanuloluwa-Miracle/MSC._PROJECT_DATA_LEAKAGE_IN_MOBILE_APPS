@@ -6,12 +6,10 @@ import sys
 import tempfile
 import unittest
 import zipfile
-from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from data_leak_detector.analysis.engine import (
-    STAGE_PROGRESS,
     AnalysisEngine,
     AnalysisStage,
     CancellationToken,
@@ -21,7 +19,6 @@ from data_leak_detector.analysis.tool_adapters import ApktoolAdapter, JadxAdapte
 from data_leak_detector.core.config import AppConfig
 from data_leak_detector.core.exceptions import (
     AnalysisCancelledError,
-    APKParsingError,
     ExternalToolError,
     InvalidAPKError,
 )
@@ -33,7 +30,6 @@ from data_leak_detector.core.models import (
     FindingCategory,
     ManifestData,
     ParsedAPKData,
-    PermissionFinding,
     RiskRating,
     SecurityFinding,
     Severity,

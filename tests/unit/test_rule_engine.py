@@ -118,6 +118,7 @@ class TestRuleEngine(unittest.TestCase):
         # Verify finding fields
         f1, f2 = report.findings[0], report.findings[1]
         self.assertEqual(f1.rule_id, "FIND-001")
+        self.assertEqual(f2.rule_id, "FIND-001")
         self.assertEqual(f1.title, "Detected Leakage Indicator")
         self.assertEqual(f1.severity, Severity.HIGH)
         self.assertEqual(f1.confidence, Confidence.HIGH)

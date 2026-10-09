@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import re
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
@@ -121,10 +121,21 @@ class ApplicationMetadata(BaseModel):
     analyzed_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def __post_init__(self) -> None:
+        from data_leak_detector.core.path_safety import sanitize_untrusted_filename
+
         if not self.filename or not self.filename.strip():
             raise ValueError("Application filename cannot be empty.")
+        # Sanitize filename against path traversal and control characters
+        self.filename = sanitize_untrusted_filename(self.filename)
+
         if not self.package_name or not self.package_name.strip():
             raise ValueError("Application package_name cannot be empty.")
+        # Strip control characters from package name
+        self.package_name = re.sub(r"[\x00-\x1f\x7f-\x9f]", "", self.package_name).strip()
+
+        if self.app_name:
+            self.app_name = re.sub(r"[\x00-\x1f\x7f-\x9f]", "", str(self.app_name)).strip()
+
         if self.file_size < 0:
             raise ValueError(f"file_size cannot be negative, got {self.file_size}.")
         if self.sha256:

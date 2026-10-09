@@ -5,16 +5,10 @@ from __future__ import annotations
 import html
 import logging
 from pathlib import Path
-from typing import Sequence
 
 from data_leak_detector.core.exceptions import ReportGenerationError
 from data_leak_detector.core.logging_config import SensitiveDataFilter
-from data_leak_detector.core.models import (
-    AnalysisResult,
-    PermissionFinding,
-    SecurityFinding,
-    Severity,
-)
+from data_leak_detector.core.models import AnalysisResult
 from data_leak_detector.reporting.text_report import (
     STATIC_ANALYSIS_DISCLAIMER,
     sort_findings_by_severity,

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import sys
 import tkinter as tk
 from tkinter import messagebox, ttk
 from typing import Any
@@ -29,7 +28,6 @@ from data_leak_detector.ui.widgets import (
     COLOR_TEXT_PRIMARY,
     FONT_BODY,
     FONT_BODY_BOLD,
-    FONT_CODE,
     FONT_HEADING,
     FONT_SMALL,
     FONT_SUBHEADING,

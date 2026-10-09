@@ -23,13 +23,12 @@ import json
 import logging
 import re
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any
 
 from data_leak_detector.core.config import AppConfig
 from data_leak_detector.core.models import (
     Confidence,
     FindingCategory,
-    ManifestData,
     ParsedAPKData,
     SecurityFinding,
     Severity,
@@ -201,18 +200,22 @@ def _load_sdk_catalog(custom_path: Path | None = None) -> list[dict[str, Any]]:
 
 def _extract_declared_permissions(context: Any) -> list[str]:
     """Helper extracting all declared permissions from analysis context."""
+    raw_perms: list[Any] = []
     if isinstance(context, ParsedAPKData):
-        return list(context.permissions)
-    if isinstance(context, dict):
+        raw_perms = list(context.permissions)
+    elif isinstance(context, dict):
         if "permissions" in context and isinstance(context["permissions"], (list, tuple, set)):
-            return list(context["permissions"])
-        if "parsed_apk" in context and isinstance(context["parsed_apk"], ParsedAPKData):
-            return list(context["parsed_apk"].permissions)
-        if "manifest_info" in context:
-            m = context["manifest_info"]
-            if isinstance(m, ManifestData):
-                return []
-    return []
+            raw_perms = list(context["permissions"])
+        elif "parsed_apk" in context and isinstance(context["parsed_apk"], ParsedAPKData):
+            raw_perms = list(context["parsed_apk"].permissions)
+
+    res: list[str] = []
+    for p in raw_perms:
+        if isinstance(p, str):
+            res.append(p)
+        elif hasattr(p, "permission") and isinstance(p.permission, str):
+            res.append(p.permission)
+    return res
 
 
 def _extract_sdk_candidates(context: Any) -> list[tuple[str, str]]:

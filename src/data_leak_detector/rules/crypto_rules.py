@@ -327,7 +327,6 @@ class HardcodedCryptoKeyRule(BaseRule):
         for location, text in _extract_text_targets(context):
             for match in self.HARDCODED_SECRET_KEY_SPEC.finditer(text):
                 raw_str_key = match.group(1)
-                raw_byte_key = match.group(2)
                 algorithm = match.group(3)
 
                 if raw_str_key:

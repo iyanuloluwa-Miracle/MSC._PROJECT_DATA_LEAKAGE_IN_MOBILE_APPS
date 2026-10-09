@@ -7,13 +7,12 @@ import queue
 import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
-from typing import Any, Callable
+from typing import Any, Callable, Sequence
 
 from data_leak_detector.analysis.batch_processor import (
     BatchItem,
     BatchItemStatus,
     BatchProcessor,
-    export_batch_summary_csv,
 )
 from data_leak_detector.core.config import AppConfig
 from data_leak_detector.core.models import AnalysisResult
@@ -27,10 +26,7 @@ from data_leak_detector.ui.widgets import (
     COLOR_SUCCESS,
     COLOR_TEXT_MUTED,
     COLOR_TEXT_PRIMARY,
-    FONT_BODY,
     FONT_BODY_BOLD,
-    FONT_HEADING,
-    FONT_SMALL,
     FONT_SUBTITLE,
     FONT_TITLE,
     EmptyState,

@@ -15,7 +15,7 @@ from data_leak_detector.analysis.batch_processor import (
     BatchProcessor,
     export_batch_summary_csv,
 )
-from data_leak_detector.analysis.engine import AnalysisEngine, CancellationToken
+from data_leak_detector.analysis.engine import AnalysisEngine
 from data_leak_detector.core.exceptions import AnalysisCancelledError
 from data_leak_detector.core.models import (
     AnalysisMetrics,

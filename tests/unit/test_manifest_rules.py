@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import unittest
-from pathlib import Path
 
 from data_leak_detector.core.models import (
     ApplicationMetadata,

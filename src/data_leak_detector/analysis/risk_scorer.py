@@ -15,11 +15,9 @@ from typing import Any, Sequence
 
 from data_leak_detector.core.models import (
     Confidence,
-    FindingCategory,
     PermissionFinding,
     RiskRating,
     RiskScore,
-    RiskScoreResult,
     SecurityFinding,
     Severity,
 )
@@ -256,9 +254,7 @@ class RiskScorer:
             for item in itemized_breakdown
             if item["severity"] == Severity.LOW.value
         )
-        low_cap_applied = False
         if total_low_points > self.low_severity_cap:
-            low_cap_applied = True
             low_scale_factor = self.low_severity_cap / total_low_points
             for item in itemized_breakdown:
                 if item["severity"] == Severity.LOW.value:

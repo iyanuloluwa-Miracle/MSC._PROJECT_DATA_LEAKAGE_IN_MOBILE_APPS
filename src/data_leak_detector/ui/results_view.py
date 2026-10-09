@@ -8,7 +8,7 @@ from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 from typing import Any
 
-from data_leak_detector.core.models import AnalysisResult, SecurityFinding, Severity
+from data_leak_detector.core.models import AnalysisResult, SecurityFinding
 from data_leak_detector.core.redactor import redact_text_secrets
 from data_leak_detector.reporting.report_generator import ReportGenerator
 from data_leak_detector.ui.widgets import (
@@ -18,13 +18,10 @@ from data_leak_detector.ui.widgets import (
     COLOR_CARD_BG,
     COLOR_TEXT_MUTED,
     COLOR_TEXT_PRIMARY,
-    COLOR_TEXT_SECONDARY,
     FONT_BODY,
     FONT_BODY_BOLD,
-    FONT_CODE,
     FONT_HEADING,
     FONT_SMALL,
-    FONT_SUBHEADING,
     FONT_TITLE,
     DisclaimerBanner,
     EmptyState,

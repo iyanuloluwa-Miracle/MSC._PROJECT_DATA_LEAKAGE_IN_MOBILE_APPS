@@ -10,7 +10,7 @@ from tkinter import filedialog, messagebox, ttk
 import tkinter as tk
 from typing import Any, Callable
 
-from data_leak_detector.analysis.engine import AnalysisEngine, CancellationToken, ProgressUpdate
+from data_leak_detector.analysis.engine import AnalysisEngine, CancellationToken
 from data_leak_detector.core.config import AppConfig
 from data_leak_detector.core.exceptions import AnalysisCancelledError
 from data_leak_detector.core.models import AnalysisResult
@@ -25,10 +25,8 @@ from data_leak_detector.ui.widgets import (
     COLOR_TEXT_PRIMARY,
     FONT_BODY,
     FONT_BODY_BOLD,
-    FONT_CODE,
     FONT_HEADING,
     FONT_SMALL,
-    FONT_SUBHEADING,
     FONT_SUBTITLE,
     FONT_TITLE,
     DropZone,
