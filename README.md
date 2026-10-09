@@ -8,6 +8,10 @@
 
 An academic research prototype desktop application for **static-only** detection of potential data leakage risks, security vulnerabilities, and privacy violations in Android applications (APK).
 
+<p align="center">
+  <img src="assets/python-image.png" alt="Mobile Data Leak Detector Dashboard" width="850">
+</p>
+
 ---
 
 ## 🔬 Core Product Constraints & Principles
@@ -35,6 +39,9 @@ mobile-data-leak-detector/
 ├── PACKAGING.md                       # Standalone compilation and distribution guide
 ├── CHANGELOG.md                       # Project release notes and version history
 ├── run_app.py                         # Application launch script
+│
+├── assets/                            # Visual assets and user interface screenshots
+│   └── python-image.png               # Desktop dashboard screenshot
 │
 ├── src/
 │   └── data_leak_detector/
