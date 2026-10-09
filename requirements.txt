@@ -1,0 +1,10 @@
+# Core static analysis runtime dependencies
+androguard>=4.0.0
+pillow>=9.0.0
+reportlab>=3.6.0
+
+# Optional development, testing, and packaging tools
+pyinstaller>=6.0.0
+flake8>=6.0.0
+coverage>=7.0.0
+mypy>=1.0.0

@@ -783,7 +783,10 @@ class ResultsView(ttk.Frame):
         raw_rating = getattr(result, "risk_rating", None)
         if raw_rating is None and hasattr(result, "risk_score"):
             raw_rating = getattr(result.risk_score, "rating", "MINIMAL")
-        rating_str = str(raw_rating.value if hasattr(raw_rating, "value") else raw_rating).upper()
+        rating_str = str(
+            raw_rating.value if (raw_rating is not None and hasattr(raw_rating, "value"))
+            else (raw_rating or "MINIMAL")
+        ).upper()
         self.rating_lbl.config(text=rating_str)
 
         # Style rating badge

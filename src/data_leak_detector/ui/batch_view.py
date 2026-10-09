@@ -47,9 +47,9 @@ class BatchView(ttk.Frame):
         **kwargs,
     ) -> None:
         super().__init__(master, *args, **kwargs)
-        self.config = config or AppConfig()
+        self.app_config = config or AppConfig()
         self.on_inspect_result = on_inspect_result
-        self.processor = BatchProcessor(config=self.config, max_concurrent=1)
+        self.processor = BatchProcessor(config=self.app_config, max_concurrent=1)
         self._event_queue: queue.Queue[tuple[str, Any]] = queue.Queue()
 
         self._init_layout()
@@ -304,7 +304,7 @@ class BatchView(ttk.Frame):
                     # Also persist completed result into SQLite history
                     if item.status == BatchItemStatus.COMPLETE and item.result:
                         try:
-                            db = DatabaseManager(self.config.database_path)
+                            db = DatabaseManager(self.app_config.database_path)
                             db.save_result(item.result)
                         except Exception as exc:
                             logger.warning("Could not persist batch result to database: %s", exc)

@@ -39,7 +39,7 @@ class HistoryView(ttk.Frame):
         **kwargs,
     ) -> None:
         super().__init__(master, *args, **kwargs)
-        self.config = config or AppConfig()
+        self.app_config = config or AppConfig()
         self.on_inspect_result = on_inspect_result
         self._history_items: list[dict[str, Any]] = []
 
@@ -226,7 +226,7 @@ class HistoryView(ttk.Frame):
     def refresh_history(self) -> None:
         """Fetch historical records from SQLite and render in table."""
         try:
-            db = DatabaseManager(self.config.database_path)
+            db = DatabaseManager(self.app_config.database_path)
             self._history_items = db.list_history(limit=200)
             self._apply_search_filter()
         except Exception as exc:
@@ -329,7 +329,7 @@ class HistoryView(ttk.Frame):
             return
 
         try:
-            db = DatabaseManager(self.config.database_path)
+            db = DatabaseManager(self.app_config.database_path)
             result = db.get_result(res_id)
             if not result:
                 messagebox.showerror("Not Found", f"Could not find scan record '{res_id}'.")
@@ -342,8 +342,8 @@ class HistoryView(ttk.Frame):
                     "Scan Summary",
                     f"Scan ID: {result.analysis_id}\n"
                     f"Package: {result.application.package_name}\n"
-                    f"Risk Score: {result.risk_score.final_score:.0f}/100 ({result.risk_score.rating})\n"
-                    f"Total Findings: {len(result.security_findings)}",
+                    f"Risk Score: {result.overall_risk_score:.0f}/100 ({result.risk_rating.value})\n"
+                    f"Total Findings: {len(result.findings)}",
                 )
         except Exception as exc:
             logger.error("Failed loading scan '%s': %s", res_id, exc)
@@ -367,7 +367,7 @@ class HistoryView(ttk.Frame):
             return
 
         try:
-            db = DatabaseManager(self.config.database_path)
+            db = DatabaseManager(self.app_config.database_path)
             deleted = db.delete_result(res_id)
             if deleted:
                 self.refresh_history()
@@ -392,7 +392,7 @@ class HistoryView(ttk.Frame):
             return
 
         try:
-            db = DatabaseManager(self.config.database_path)
+            db = DatabaseManager(self.app_config.database_path)
             db.clear_history()
             self.refresh_history()
             messagebox.showinfo("History Cleared", "All scan records have been cleared from local database.")
@@ -411,7 +411,7 @@ class HistoryView(ttk.Frame):
             return
 
         try:
-            db = DatabaseManager(self.config.database_path)
+            db = DatabaseManager(self.app_config.database_path)
             result = db.get_result(res_id)
             if not result:
                 messagebox.showerror("Error", "Selected scan could not be retrieved.")

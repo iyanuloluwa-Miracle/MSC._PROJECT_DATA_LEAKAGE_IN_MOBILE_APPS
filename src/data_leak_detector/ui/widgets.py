@@ -1184,9 +1184,9 @@ class DropZone(tk.Frame):
     def _register_dnd_if_available(self) -> None:
         """Attempt to register tkinterdnd2 drop target if available."""
         try:
-            if hasattr(self, "drop_target_register"):
-                self.drop_target_register("DND_Files")
-                self.dnd_bind("<<Drop>>", self._on_drop_event)
+            if hasattr(self, "drop_target_register") and hasattr(self, "dnd_bind"):
+                getattr(self, "drop_target_register")("DND_Files")
+                getattr(self, "dnd_bind")("<<Drop>>", self._on_drop_event)
         except Exception as exc:
             logger.debug("tkinterdnd2 not available on this widget: %s", exc)
 
@@ -1198,21 +1198,35 @@ class DropZone(tk.Frame):
                 self.on_file_dropped(raw_path)
 
     def show_selected_file(self, file_path: str) -> None:
-        """Display information for the selected APK file."""
+        """Display basic metadata for the selected APK package."""
         p = Path(file_path)
         size_str = "Unknown size"
-        if p.exists():
+        hash_preview = ""
+        if p.exists() and p.is_file():
             try:
                 sz = p.stat().st_size
                 if sz > 1024 * 1024:
-                    size_str = f"{sz / (1024 * 1024):.1f} MB"
+                    size_str = f"{sz / (1024 * 1024):.2f} MB"
                 else:
                     size_str = f"{sz / 1024:.1f} KB"
+
+                import hashlib
+                hasher = hashlib.sha256()
+                with open(p, "rb") as f:
+                    for chunk in iter(lambda: f.read(65536), b""):
+                        hasher.update(chunk)
+                full_hash = hasher.hexdigest()
+                hash_preview = f"SHA-256: {full_hash[:12]}...{full_hash[-6:]}"
             except Exception:
                 pass
 
+        meta_parts = [f"Size: {size_str}"]
+        if hash_preview:
+            meta_parts.append(hash_preview)
+        meta_parts.append(f"Location: {str(p)}")
+
         self.file_name_label.config(text=f"Selected APK: {p.name}")
-        self.file_meta_label.config(text=f"Size: {size_str}  •  Path: {str(p)}")
+        self.file_meta_label.config(text="  •  ".join(meta_parts))
         self.details_frame.pack(fill=tk.X, pady=(12, 0))
 
     def clear(self) -> None:

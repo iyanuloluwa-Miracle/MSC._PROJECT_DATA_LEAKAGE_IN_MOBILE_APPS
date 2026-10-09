@@ -37,7 +37,7 @@ class SettingsView(ttk.Frame):
 
     def __init__(self, master: tk.Misc, config: AppConfig | None = None, *args, **kwargs) -> None:
         super().__init__(master, *args, **kwargs)
-        self.config = config or AppConfig()
+        self.app_config = config or AppConfig()
 
         self._init_layout()
         self._load_values_into_form()
@@ -207,7 +207,7 @@ class SettingsView(ttk.Frame):
             anchor="w",
         ).pack(side=tk.LEFT)
 
-        self.timeout_var = tk.StringVar(value=str(self.config.subprocess_timeout_seconds))
+        self.timeout_var = tk.StringVar(value=str(self.app_config.subprocess_timeout_seconds))
         self.timeout_spin = ttk.Spinbox(
             timeout_row,
             from_=15,
@@ -261,7 +261,7 @@ class SettingsView(ttk.Frame):
             anchor="w",
         ).pack(side=tk.LEFT)
 
-        self.report_fmt_var = tk.StringVar(value=self.config.report_default_format)
+        self.report_fmt_var = tk.StringVar(value=self.app_config.report_default_format)
         fmt_combo = ttk.Combobox(
             fmt_row,
             textvariable=self.report_fmt_var,
@@ -272,9 +272,9 @@ class SettingsView(ttk.Frame):
         fmt_combo.pack(side=tk.LEFT)
 
         # Checkboxes for report contents
-        self.rep_disclaimer_var = tk.BooleanVar(value=self.config.report_include_disclaimer)
-        self.rep_owasp_var = tk.BooleanVar(value=self.config.report_include_owasp)
-        self.rep_perms_var = tk.BooleanVar(value=self.config.report_include_permissions)
+        self.rep_disclaimer_var = tk.BooleanVar(value=self.app_config.report_include_disclaimer)
+        self.rep_owasp_var = tk.BooleanVar(value=self.app_config.report_include_owasp)
+        self.rep_perms_var = tk.BooleanVar(value=self.app_config.report_include_permissions)
 
         ttk.Checkbutton(
             report_card,
@@ -316,7 +316,7 @@ class SettingsView(ttk.Frame):
             anchor="w",
         ).pack(fill=tk.X, pady=(0, 6))
 
-        self.high_contrast_var = tk.BooleanVar(value=self.config.high_contrast_mode)
+        self.high_contrast_var = tk.BooleanVar(value=self.app_config.high_contrast_mode)
         ttk.Checkbutton(
             access_card,
             text="Enable High-Contrast Mode (Increases visual border definitions and badge contrast)",
@@ -354,12 +354,12 @@ class SettingsView(ttk.Frame):
             anchor="w",
         ).pack(fill=tk.X, pady=(0, 8))
 
-        self.rule_manifest_var = tk.BooleanVar(value=self.config.enable_manifest_rules)
-        self.rule_secrets_var = tk.BooleanVar(value=self.config.enable_secret_rules)
-        self.rule_network_var = tk.BooleanVar(value=self.config.enable_network_rules)
-        self.rule_storage_var = tk.BooleanVar(value=self.config.enable_storage_rules)
-        self.rule_crypto_var = tk.BooleanVar(value=self.config.enable_crypto_rules)
-        self.rule_sdks_var = tk.BooleanVar(value=self.config.enable_sdk_rules)
+        self.rule_manifest_var = tk.BooleanVar(value=self.app_config.enable_manifest_rules)
+        self.rule_secrets_var = tk.BooleanVar(value=self.app_config.enable_secret_rules)
+        self.rule_network_var = tk.BooleanVar(value=self.app_config.enable_network_rules)
+        self.rule_storage_var = tk.BooleanVar(value=self.app_config.enable_storage_rules)
+        self.rule_crypto_var = tk.BooleanVar(value=self.app_config.enable_crypto_rules)
+        self.rule_sdks_var = tk.BooleanVar(value=self.app_config.enable_sdk_rules)
 
         rules_grid = tk.Frame(rules_card, bg=COLOR_CARD_BG)
         rules_grid.pack(fill=tk.X)
@@ -600,23 +600,23 @@ class SettingsView(ttk.Frame):
     def _load_values_into_form(self) -> None:
         """Populate form variables from runtime AppConfig."""
         # Try loading persisted settings from disk if available
-        self.config.load_from_disk()
+        self.app_config.load_from_disk()
 
-        self.jadx_path_var.set(self.config.jadx_path or "")
-        self.apktool_path_var.set(self.config.apktool_path or "")
-        self.output_dir_var.set(self.config.output_dir or "")
-        self.timeout_var.set(str(self.config.subprocess_timeout_seconds))
-        self.report_fmt_var.set(self.config.report_default_format)
-        self.rep_disclaimer_var.set(self.config.report_include_disclaimer)
-        self.rep_owasp_var.set(self.config.report_include_owasp)
-        self.rep_perms_var.set(self.config.report_include_permissions)
-        self.high_contrast_var.set(self.config.high_contrast_mode)
-        self.rule_manifest_var.set(self.config.enable_manifest_rules)
-        self.rule_secrets_var.set(self.config.enable_secret_rules)
-        self.rule_network_var.set(self.config.enable_network_rules)
-        self.rule_storage_var.set(self.config.enable_storage_rules)
-        self.rule_crypto_var.set(self.config.enable_crypto_rules)
-        self.rule_sdks_var.set(self.config.enable_sdk_rules)
+        self.jadx_path_var.set(str(self.app_config.jadx_path or ""))
+        self.apktool_path_var.set(str(self.app_config.apktool_path or ""))
+        self.output_dir_var.set(str(self.app_config.output_dir or ""))
+        self.timeout_var.set(str(self.app_config.subprocess_timeout_seconds))
+        self.report_fmt_var.set(self.app_config.report_default_format)
+        self.rep_disclaimer_var.set(self.app_config.report_include_disclaimer)
+        self.rep_owasp_var.set(self.app_config.report_include_owasp)
+        self.rep_perms_var.set(self.app_config.report_include_permissions)
+        self.high_contrast_var.set(self.app_config.high_contrast_mode)
+        self.rule_manifest_var.set(self.app_config.enable_manifest_rules)
+        self.rule_secrets_var.set(self.app_config.enable_secret_rules)
+        self.rule_network_var.set(self.app_config.enable_network_rules)
+        self.rule_storage_var.set(self.app_config.enable_storage_rules)
+        self.rule_crypto_var.set(self.app_config.enable_crypto_rules)
+        self.rule_sdks_var.set(self.app_config.enable_sdk_rules)
 
     def save_settings(self) -> None:
         """Save form values into AppConfig and persist to user configuration directory."""
@@ -624,28 +624,28 @@ class SettingsView(ttk.Frame):
             val = int(self.timeout_var.get())
             if val < 5:
                 val = 5
-            self.config.subprocess_timeout_seconds = val
+            self.app_config.subprocess_timeout_seconds = val
         except ValueError:
             messagebox.showerror("Invalid Timeout", "Timeout must be a positive integer number of seconds.")
             return
 
-        self.config.jadx_path = self.jadx_path_var.get().strip()
-        self.config.apktool_path = self.apktool_path_var.get().strip()
-        self.config.output_dir = self.output_dir_var.get().strip()
-        self.config.report_default_format = self.report_fmt_var.get().strip()
-        self.config.report_include_disclaimer = self.rep_disclaimer_var.get()
-        self.config.report_include_owasp = self.rep_owasp_var.get()
-        self.config.report_include_permissions = self.rep_perms_var.get()
-        self.config.high_contrast_mode = self.high_contrast_var.get()
-        self.config.enable_manifest_rules = self.rule_manifest_var.get()
-        self.config.enable_secret_rules = self.rule_secrets_var.get()
-        self.config.enable_network_rules = self.rule_network_var.get()
-        self.config.enable_storage_rules = self.rule_storage_var.get()
-        self.config.enable_crypto_rules = self.rule_crypto_var.get()
-        self.config.enable_sdk_rules = self.rule_sdks_var.get()
+        self.app_config.jadx_path = self.jadx_path_var.get().strip()
+        self.app_config.apktool_path = self.apktool_path_var.get().strip()
+        self.app_config.output_dir = self.output_dir_var.get().strip()
+        self.app_config.report_default_format = self.report_fmt_var.get().strip()
+        self.app_config.report_include_disclaimer = self.rep_disclaimer_var.get()
+        self.app_config.report_include_owasp = self.rep_owasp_var.get()
+        self.app_config.report_include_permissions = self.rep_perms_var.get()
+        self.app_config.high_contrast_mode = self.high_contrast_var.get()
+        self.app_config.enable_manifest_rules = self.rule_manifest_var.get()
+        self.app_config.enable_secret_rules = self.rule_secrets_var.get()
+        self.app_config.enable_network_rules = self.rule_network_var.get()
+        self.app_config.enable_storage_rules = self.rule_storage_var.get()
+        self.app_config.enable_crypto_rules = self.rule_crypto_var.get()
+        self.app_config.enable_sdk_rules = self.rule_sdks_var.get()
 
         # Persist to disk in user configuration directory
-        saved_file = self.config.save_to_disk()
+        saved_file = self.app_config.save_to_disk()
         messagebox.showinfo("Settings Saved", f"Configuration settings successfully saved to:\n{saved_file.name}")
 
     def reset_settings(self) -> None:
@@ -657,7 +657,7 @@ class SettingsView(ttk.Frame):
         if not confirm:
             return
 
-        self.config.reset_to_defaults()
+        self.app_config.reset_to_defaults()
         self._load_values_into_form()
         self.check_tools()
         messagebox.showinfo("Settings Restored", "All configuration settings have been restored to defaults.")

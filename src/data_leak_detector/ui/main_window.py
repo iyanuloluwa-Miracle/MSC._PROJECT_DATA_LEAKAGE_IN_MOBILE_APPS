@@ -159,7 +159,7 @@ class MainWindow(tk.Tk):
 
     def __init__(self, config: AppConfig | None = None) -> None:
         super().__init__()
-        self.config = config or AppConfig()
+        self.app_config = config or AppConfig()
 
         self._init_window()
         self._init_styles()
@@ -229,7 +229,7 @@ class MainWindow(tk.Tk):
         self.nav_container = tk.Frame(self.sidebar, bg=COLOR_SIDEBAR_BG, padx=10)
         self.nav_container.pack(fill=tk.X)
 
-        self._nav_buttons: dict[str, tk.Label] = {}
+        self._nav_buttons: dict[str, tk.Frame] = {}
         self._current_view = "analyze"
 
         # Create sidebar items
@@ -276,25 +276,25 @@ class MainWindow(tk.Tk):
 
         self.views["analyze"] = AnalyzeView(
             self.content_area,
-            config=self.config,
+            config=self.app_config,
             on_analysis_completed=self._on_scan_completed,
         )
 
         self.views["batch"] = BatchView(
             self.content_area,
-            config=self.config,
+            config=self.app_config,
             on_inspect_result=self._on_inspect_history_result,
         )
 
         self.views["history"] = HistoryView(
             self.content_area,
-            config=self.config,
+            config=self.app_config,
             on_inspect_result=self._on_inspect_history_result,
         )
 
         self.views["settings"] = SettingsView(
             self.content_area,
-            config=self.config,
+            config=self.app_config,
         )
 
         self.views["about"] = AboutView(
@@ -335,10 +335,19 @@ class MainWindow(tk.Tk):
         shortcut_lbl.pack(side=tk.RIGHT)
 
         # Event bindings
+        def on_click(_event: Any, key: str = view_key) -> None:
+            self.show_view(key)
+
+        def on_enter(_event: Any, frame: tk.Frame = btn_frame, key: str = view_key) -> None:
+            self._on_nav_enter(frame, key)
+
+        def on_leave(_event: Any, frame: tk.Frame = btn_frame, key: str = view_key) -> None:
+            self._on_nav_leave(frame, key)
+
         for widget in (btn_frame, lbl, shortcut_lbl):
-            widget.bind("<Button-1>", lambda e, k=view_key: self.show_view(k))
-            widget.bind("<Enter>", lambda e, f=btn_frame, k=view_key: self._on_nav_enter(f, k))
-            widget.bind("<Leave>", lambda e, f=btn_frame, k=view_key: self._on_nav_leave(f, k))
+            widget.bind("<Button-1>", on_click)
+            widget.bind("<Enter>", on_enter)
+            widget.bind("<Leave>", on_leave)
 
         self._nav_buttons[view_key] = btn_frame
 

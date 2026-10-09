@@ -48,7 +48,7 @@ class AnalyzeView(ttk.Frame):
         **kwargs,
     ) -> None:
         super().__init__(master, *args, **kwargs)
-        self.config = config or AppConfig()
+        self.app_config = config or AppConfig()
         self.on_analysis_completed = on_analysis_completed
 
         self.selected_apk_path: Path | None = None
@@ -245,10 +245,11 @@ class AnalyzeView(ttk.Frame):
             if len(chosen) > 1:
                 # Direct multiple files to BatchView if hosted in MainWindow
                 top = self.winfo_toplevel()
-                if hasattr(top, "views") and "batch" in top.views:
-                    batch_view = top.views["batch"]
+                if hasattr(top, "views") and "batch" in getattr(top, "views", {}):
+                    batch_view = getattr(top, "views")["batch"]
                     batch_view.add_files(chosen)
-                    top.show_view("batch")
+                    if hasattr(top, "show_view"):
+                        getattr(top, "show_view")("batch")
                     return
             self.set_selected_apk(chosen[0])
 
@@ -341,7 +342,7 @@ class AnalyzeView(ttk.Frame):
             self._event_queue.put(("progress", (progress, stage_str, message)))
 
         try:
-            engine = AnalysisEngine(config=self.config)
+            engine = AnalysisEngine(config=self.app_config)
             result = engine.analyze_apk(
                 apk_path=apk_path,
                 progress_callback=progress_listener,
@@ -350,7 +351,7 @@ class AnalyzeView(ttk.Frame):
 
             # Auto-save scan result to local SQLite database
             try:
-                db = DatabaseManager(self.config.database_path)
+                db = DatabaseManager(self.app_config.database_path)
                 db.save_result(result)
                 logger.info("Successfully persisted analysis result to SQLite database.")
             except Exception as db_err:

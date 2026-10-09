@@ -1,0 +1,79 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mobile-data-leak-detector"
+version = "0.1.0"
+description = "Static-only analysis tool for detecting data leaks, security vulnerabilities, and tracking behaviors in Android applications."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Iyanuloluwa Miracle", email = "iyanudina@gmail.com"}
+]
+keywords = [
+    "android",
+    "security",
+    "privacy",
+    "static-analysis",
+    "data-leak",
+    "vulnerability-scanner",
+    "androguard",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "Topic :: Security",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "androguard>=4.0.0",
+    "pillow>=9.0.0",
+    "reportlab>=3.6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pyinstaller>=6.0.0",
+    "flake8>=6.0.0",
+    "coverage>=7.0.0",
+    "mypy>=1.0.0",
+]
+
+[project.scripts]
+mobile-data-leak-detector = "data_leak_detector.app:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"*" = ["resources/*.json"]
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = false
+warn_unused_configs = true
+ignore_missing_imports = true
+follow_imports = "silent"
+
+[tool.coverage.run]
+source = ["src/data_leak_detector"]
+omit = [
+    "tests/*",
+    "scripts/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]

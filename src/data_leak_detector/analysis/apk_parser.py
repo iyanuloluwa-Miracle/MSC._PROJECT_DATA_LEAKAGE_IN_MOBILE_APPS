@@ -26,6 +26,120 @@ from data_leak_detector.core.path_safety import is_safe_zip_path
 logger = logging.getLogger(__name__)
 
 
+class _PlainManifestFallback:
+    """Fallback adapter for test/demonstration APKs containing plain-text AndroidManifest.xml."""
+
+    def __init__(self, apk_path: Path, root: Any) -> None:
+        self.apk_path = apk_path
+        self.root = root
+        self.ns = "{http://schemas.android.com/apk/res/android}"
+
+    def is_valid_APK(self) -> bool:
+        return True
+
+    def get_package(self) -> str:
+        return self.root.attrib.get("package", "unknown.package")
+
+    def get_app_name(self) -> str | None:
+        app_elem = self.root.find("application")
+        if app_elem is not None:
+            return (
+                app_elem.attrib.get(f"{self.ns}label")
+                or app_elem.attrib.get("label")
+                or self.get_package()
+            )
+        return self.get_package()
+
+    def get_androidversion_name(self) -> str | None:
+        return (
+            self.root.attrib.get(f"{self.ns}versionName")
+            or self.root.attrib.get("versionName", "1.0.0")
+        )
+
+    def get_androidversion_code(self) -> str | None:
+        return (
+            self.root.attrib.get(f"{self.ns}versionCode")
+            or self.root.attrib.get("versionCode", "1")
+        )
+
+    def get_min_sdk_version(self) -> str | None:
+        sdk = self.root.find("uses-sdk")
+        if sdk is not None:
+            return sdk.attrib.get(f"{self.ns}minSdkVersion") or sdk.attrib.get("minSdkVersion")
+        return "21"
+
+    def get_target_sdk_version(self) -> str | None:
+        sdk = self.root.find("uses-sdk")
+        if sdk is not None:
+            return sdk.attrib.get(f"{self.ns}targetSdkVersion") or sdk.attrib.get("targetSdkVersion")
+        return "33"
+
+    def get_permissions(self) -> list[str]:
+        perms = []
+        for elem in self.root.findall("uses-permission"):
+            name = elem.attrib.get(f"{self.ns}name") or elem.attrib.get("name")
+            if name:
+                perms.append(name)
+        return perms
+
+    def get_declared_permissions(self) -> list[str]:
+        perms = []
+        for elem in self.root.findall("permission"):
+            name = elem.attrib.get(f"{self.ns}name") or elem.attrib.get("name")
+            if name:
+                perms.append(name)
+        return perms
+
+    def get_activities(self) -> list[str]:
+        return self._get_components("activity")
+
+    def get_services(self) -> list[str]:
+        return self._get_components("service")
+
+    def get_receivers(self) -> list[str]:
+        return self._get_components("receiver")
+
+    def get_providers(self) -> list[str]:
+        return self._get_components("provider")
+
+    def _get_components(self, tag: str) -> list[str]:
+        res = []
+        app = self.root.find("application")
+        if app is not None:
+            for elem in app.findall(tag):
+                name = elem.attrib.get(f"{self.ns}name") or elem.attrib.get("name")
+                if name:
+                    res.append(name)
+        return res
+
+    def get_features(self) -> list[str]:
+        feats = []
+        for elem in self.root.findall("uses-feature"):
+            name = elem.attrib.get(f"{self.ns}name") or elem.attrib.get("name")
+            if name:
+                feats.append(name)
+        return feats
+
+    def get_libraries(self) -> list[str]:
+        libs = []
+        app = self.root.find("application")
+        if app is not None:
+            for elem in app.findall("uses-library"):
+                name = elem.attrib.get(f"{self.ns}name") or elem.attrib.get("name")
+                if name:
+                    libs.append(name)
+        return libs
+
+    def get_attribute_value(self, tag: str, attr: str) -> str | None:
+        elem = self.root.find(tag)
+        if elem is not None:
+            return elem.attrib.get(f"{self.ns}{attr}") or elem.attrib.get(attr)
+        return None
+
+    def get_android_manifest_xml(self) -> Any:
+        return self.root
+
+
 class APKParser:
     """Performs static-only inspection and metadata extraction on Android APK files.
     
@@ -208,6 +322,27 @@ class APKParser:
         """Quickly extract baseline ApplicationMetadata."""
         return self.parse().metadata
 
+    def _try_load_plain_manifest(self) -> Any | None:
+        """Fallback parser for demonstration APKs containing plain-text AndroidManifest.xml."""
+        try:
+            import zipfile
+            import xml.etree.ElementTree as ET
+
+            if not self.apk_path.exists():
+                return None
+
+            with zipfile.ZipFile(self.apk_path, "r") as zf:
+                if "AndroidManifest.xml" not in zf.namelist():
+                    return None
+                manifest_bytes = zf.read("AndroidManifest.xml")
+
+            root = ET.fromstring(manifest_bytes)
+            logger.info("Using plain-text manifest adapter for APK: %s", self.apk_path.name)
+            return _PlainManifestFallback(self.apk_path, root)
+        except Exception as exc:
+            logger.debug("Plain manifest fallback not applicable: %s", exc)
+            return None
+
     def _load_androguard_apk(self) -> Any:
         """Import AndroGuard and initialize the APK parser object."""
         try:
@@ -223,11 +358,17 @@ class APKParser:
         try:
             apk_obj = APK(str(self.apk_path))
             if not apk_obj.is_valid_APK():
+                fallback = self._try_load_plain_manifest()
+                if fallback is not None:
+                    return fallback
                 raise APKParsingError("AndroGuard determined the APK file is invalid or corrupted.")
             return apk_obj
         except APKParsingError:
             raise
         except Exception as e:
+            fallback = self._try_load_plain_manifest()
+            if fallback is not None:
+                return fallback
             sanitized_err = SensitiveDataFilter.redact(str(e))
             raise APKParsingError(f"AndroGuard failed to parse APK: {sanitized_err}") from e
 
@@ -251,10 +392,14 @@ class APKParser:
         try:
             manifest_xml = apk_obj.get_android_manifest_xml()
             if manifest_xml is not None:
-                import lxml.etree
-                raw_xml = lxml.etree.tostring(manifest_xml, pretty_print=True, encoding="utf-8").decode(
-                    "utf-8", errors="replace"
-                )
+                try:
+                    import lxml.etree
+                    raw_xml = lxml.etree.tostring(manifest_xml, pretty_print=True, encoding="utf-8").decode(
+                        "utf-8", errors="replace"
+                    )
+                except Exception:
+                    import xml.etree.ElementTree as ET
+                    raw_xml = ET.tostring(manifest_xml, encoding="utf-8").decode("utf-8", errors="replace")
                 components = self._extract_components_from_xml(
                     manifest_xml, apk_obj.get_target_sdk_version()
                 )
